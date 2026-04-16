@@ -16,14 +16,15 @@ Every agent runs in a **fully isolated subprocess**. Communication happens throu
 
 ## Requirements
 
-- **Claude Code** with the following base agents already installed in `~/.claude/agents/`:
-  - `planner.md`
-  - `generator.md`
-  - `evaluator.md`
-- **Playwright MCP** — required by the Evaluator agent for live browser testing
-- Git (used by the Generator to commit sprint checkpoints)
+- **Claude Code** with the following agents in `~/.claude/agents/`:
+  - `planner.md` — your planner agent
+  - `generator.md` — your generator agent
+  - `evaluator.md` — your evaluator agent
 
-> If you use [oh-my-claudecode](https://github.com/Yeachan-Heo/oh-my-claudecode), the base agents are already present.
+  These are **your own agents**. The installer patches them by appending a `## PGE Mode` adapter section so they can operate inside the PGE pipeline. If any of the three files doesn't exist, the installer skips patching that agent (`[SKIP]`).
+
+- **Playwright MCP** — required by the Evaluator agent for live browser testing
+- Git — used by the Generator to commit sprint checkpoints
 
 ---
 
