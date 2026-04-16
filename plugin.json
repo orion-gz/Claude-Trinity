@@ -5,18 +5,18 @@
   "author": "orion-gz",
   "claude_code_min_version": "1.0.0",
   "skills": [
-    "src/skills/pge.md",
-    "src/skills/pge-strict.md",
-    "src/skills/pge-quality.md",
-    "src/skills/pge-ultra.md"
+    "skills/pge/SKILL.md",
+    "skills/pge-strict/SKILL.md",
+    "skills/pge-quality/SKILL.md",
+    "skills/pge-ultra/SKILL.md"
   ],
   "agents": [
-    "src/agents/planner.md",
-    "src/agents/generator.md",
-    "src/agents/evaluator.md",
-    "src/agents/evaluator-standard.md",
-    "src/agents/evaluator-strict.md",
-    "src/agents/evaluator-quality.md",
-    "src/agents/pge-orchestrator.md"
+    "agents/planner.md",
+    "agents/generator.md",
+    "agents/evaluator.md",
+    "agents/evaluator-standard.md",
+    "agents/evaluator-strict.md",
+    "agents/evaluator-quality.md",
+    "agents/pge-orchestrator.md"
   ]
 }
