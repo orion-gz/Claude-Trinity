@@ -6,8 +6,8 @@
     "name": "",
     "email": ""
   },
-  "repository": "",
-  "homepage": "",
+  "repository": "https://github.com/orion-gz/Claude-Trinity",
+  "homepage": "https://github.com/orion-gz/Claude-Trinity",
   "license": "MIT",
   "keywords": [
     "claude-code",

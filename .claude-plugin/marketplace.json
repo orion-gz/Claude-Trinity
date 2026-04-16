@@ -17,7 +17,7 @@
       },
       "source": "./",
       "category": "productivity",
-      "homepage": "",
+      "homepage": "https://github.com/orion-gz/Claude-Trinity",
       "tags": [
         "multi-agent",
         "orchestration",
