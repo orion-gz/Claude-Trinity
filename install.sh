@@ -5,15 +5,22 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILLS_DIR="$HOME/.claude/skills"
 AGENTS_DIR="$HOME/.claude/agents"
 
-echo "=== PGE Orchestrator Plugin — Install (v2.2.0) ==="
+echo "=== PGE Orchestrator Plugin — Install (v2.3.0) ==="
 echo ""
 
-# 1. Create skills directory if needed
+# 1. Create directories if needed
 if [ ! -d "$SKILLS_DIR" ]; then
   mkdir -p "$SKILLS_DIR"
   echo "[OK] Created $SKILLS_DIR"
 else
   echo "[OK] Skills directory exists: $SKILLS_DIR"
+fi
+
+if [ ! -d "$AGENTS_DIR" ]; then
+  mkdir -p "$AGENTS_DIR"
+  echo "[OK] Created $AGENTS_DIR"
+else
+  echo "[OK] Agents directory exists: $AGENTS_DIR"
 fi
 
 # 2. Install skills
@@ -22,33 +29,23 @@ for skill in pge pge-strict pge-quality pge-ultra; do
   echo "[OK] Installed skill: $SKILLS_DIR/${skill}.md"
 done
 
-# 3. Patch base agents (append PGE Mode section to existing agent files)
+# 3. Install base agents (planner, generator, evaluator)
 for agent in planner generator evaluator; do
-  AGENT_FILE="$AGENTS_DIR/${agent}.md"
-  PATCH_FILE="$SCRIPT_DIR/src/agents/${agent}.patch"
+  SRC_FILE="$SCRIPT_DIR/src/agents/${agent}.md"
+  DEST_FILE="$AGENTS_DIR/${agent}.md"
 
-  if [ ! -f "$AGENT_FILE" ]; then
-    echo "[SKIP] Agent file not found: $AGENT_FILE"
+  if [ ! -f "$SRC_FILE" ]; then
+    echo "[SKIP] Source file not found: $SRC_FILE"
     continue
   fi
 
-  if grep -q "## PGE Mode" "$AGENT_FILE"; then
-    echo "[SKIP] PGE Mode already present in ${agent}.md — replacing with updated patch"
-    LINE=$(grep -n "^## PGE Mode" "$AGENT_FILE" | head -1 | cut -d: -f1)
-    TRIM_LINE=$((LINE - 1))
-    ACTUAL=$(sed -n "${TRIM_LINE}p" "$AGENT_FILE")
-    if [ -z "$ACTUAL" ]; then
-      CUT_AT=$((LINE - 1))
-    else
-      CUT_AT=$LINE
-    fi
-    head -n $((CUT_AT - 1)) "$AGENT_FILE" > "${AGENT_FILE}.tmp"
-    mv "${AGENT_FILE}.tmp" "$AGENT_FILE"
+  if [ -f "$DEST_FILE" ]; then
+    cp "$DEST_FILE" "${DEST_FILE}.bak"
+    echo "[BACKUP] ${agent}.md → ${agent}.md.bak"
   fi
 
-  echo "" >> "$AGENT_FILE"
-  cat "$PATCH_FILE" >> "$AGENT_FILE"
-  echo "[OK] Patched ${agent}.md with PGE Mode section"
+  cp "$SRC_FILE" "$DEST_FILE"
+  echo "[OK] Installed agent: $DEST_FILE"
 done
 
 # 4. Install standalone evaluator agents and orchestrator agent
@@ -74,7 +71,7 @@ for old_file in "$SKILLS_DIR/pge-premium.md" "$AGENTS_DIR/evaluator-premium.md";
 done
 
 echo ""
-echo "=== Installation complete (v2.2.0) ==="
+echo "=== Installation complete (v2.3.0) ==="
 echo ""
 echo "Commands:"
 echo '  pge "idea"                               — standard evaluator (≥3/5)'

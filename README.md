@@ -16,15 +16,12 @@ Every agent runs in a **fully isolated subprocess**. Communication happens throu
 
 ## Requirements
 
-- **Claude Code** with the following agents in `~/.claude/agents/`:
-  - `planner.md` — your planner agent
-  - `generator.md` — your generator agent
-  - `evaluator.md` — your evaluator agent
-
-  These are **your own agents**. The installer patches them by appending a `## PGE Mode` adapter section so they can operate inside the PGE pipeline. If any of the three files doesn't exist, the installer skips patching that agent (`[SKIP]`).
-
+- **Claude Code**
 - **Playwright MCP** — required by the Evaluator agent for live browser testing
 - Git — used by the Generator to commit sprint checkpoints
+
+> `planner.md`, `generator.md`, `evaluator.md` 및 모든 evaluator/orchestrator 에이전트는 `install.sh`가 `~/.claude/agents/`에 직접 설치합니다. 별도로 준비할 필요가 없습니다.
+> 기존에 같은 이름의 파일이 있으면 `.bak`으로 백업 후 덮어씁니다.
 
 ---
 
