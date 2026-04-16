@@ -1,24 +1,34 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SKILLS_DIR="$HOME/.claude/skills"
+COMMANDS_DIR="$HOME/.claude/commands"
 AGENTS_DIR="$HOME/.claude/agents"
 
 echo "=== PGE Orchestrator Plugin — Uninstall ==="
 echo ""
 
-# 1. Remove skill files
+# 1. Remove slash command files
+for skill in pge pge-strict pge-quality pge-ultra pge-premium; do
+  CMD_FILE="$COMMANDS_DIR/${skill}.md"
+  if [ -f "$CMD_FILE" ]; then
+    rm "$CMD_FILE"
+    echo "[OK] Removed command: $CMD_FILE"
+  else
+    echo "[SKIP] Command not found: $CMD_FILE"
+  fi
+done
+
+# 2. Remove legacy skill files if present
+SKILLS_DIR="$HOME/.claude/skills"
 for skill in pge pge-strict pge-quality pge-ultra pge-premium; do
   SKILL_FILE="$SKILLS_DIR/${skill}.md"
   if [ -f "$SKILL_FILE" ]; then
     rm "$SKILL_FILE"
-    echo "[OK] Removed skill: $SKILL_FILE"
-  else
-    echo "[SKIP] Skill not found: $SKILL_FILE"
+    echo "[OK] Removed legacy skill: $SKILL_FILE"
   fi
 done
 
-# 2. Remove PGE Mode sections from patched agent files
+# 3. Remove PGE Mode sections from patched agent files
 for agent in planner generator evaluator; do
   AGENT_FILE="$AGENTS_DIR/${agent}.md"
 
@@ -46,8 +56,8 @@ for agent in planner generator evaluator; do
   echo "[OK] Removed PGE Mode section from ${agent}.md (was at line $LINE)"
 done
 
-# 3. Remove standalone evaluator agent files (current + legacy names)
-for variant in evaluator-standard evaluator-strict evaluator-quality evaluator-premium; do
+# 4. Remove standalone evaluator and orchestrator agent files
+for variant in evaluator-standard evaluator-strict evaluator-quality evaluator-premium pge-orchestrator; do
   AGENT_FILE="$AGENTS_DIR/${variant}.md"
   if [ -f "$AGENT_FILE" ]; then
     rm "$AGENT_FILE"

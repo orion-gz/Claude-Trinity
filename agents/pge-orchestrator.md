@@ -1,4 +1,5 @@
 ---
+name: "pge-orchestrator"
 description: PGE Orchestrator Agent — adaptive Planner→Generator→Evaluator pipeline. Analyzes input complexity, parses planner signals, and dynamically assigns evaluator mode per sprint. Escalates evaluator strictness on repeated failures. Can be invoked as subagent_type "pge-orchestrator" by other agents or triggered directly by user.
 ---
 

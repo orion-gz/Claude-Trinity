@@ -2,18 +2,18 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SKILLS_DIR="$HOME/.claude/skills"
+COMMANDS_DIR="$HOME/.claude/commands"
 AGENTS_DIR="$HOME/.claude/agents"
 
 echo "=== PGE Orchestrator Plugin — Install (v2.3.0) ==="
 echo ""
 
 # 1. Create directories if needed
-if [ ! -d "$SKILLS_DIR" ]; then
-  mkdir -p "$SKILLS_DIR"
-  echo "[OK] Created $SKILLS_DIR"
+if [ ! -d "$COMMANDS_DIR" ]; then
+  mkdir -p "$COMMANDS_DIR"
+  echo "[OK] Created $COMMANDS_DIR"
 else
-  echo "[OK] Skills directory exists: $SKILLS_DIR"
+  echo "[OK] Commands directory exists: $COMMANDS_DIR"
 fi
 
 if [ ! -d "$AGENTS_DIR" ]; then
@@ -23,10 +23,10 @@ else
   echo "[OK] Agents directory exists: $AGENTS_DIR"
 fi
 
-# 2. Install skills
+# 2. Install slash commands (~/.claude/commands/ — Claude Code native)
 for skill in pge pge-strict pge-quality pge-ultra; do
-  cp "$SCRIPT_DIR/src/skills/${skill}.md" "$SKILLS_DIR/${skill}.md"
-  echo "[OK] Installed skill: $SKILLS_DIR/${skill}.md"
+  cp "$SCRIPT_DIR/src/skills/${skill}.md" "$COMMANDS_DIR/${skill}.md"
+  echo "[OK] Installed command: $COMMANDS_DIR/${skill}.md"
 done
 
 # 3. Install base agents (planner, generator, evaluator)
@@ -62,11 +62,18 @@ for variant in evaluator-standard evaluator-strict evaluator-quality pge-orchest
   echo "[OK] Installed agent: $DEST_FILE"
 done
 
-# 5. Clean up old renamed files if present (v2.0.0 → v2.1.0 migration)
-for old_file in "$SKILLS_DIR/pge-premium.md" "$AGENTS_DIR/evaluator-premium.md"; do
+# 5. Clean up legacy files from old install locations
+for old_file in \
+  "$HOME/.claude/skills/pge.md" \
+  "$HOME/.claude/skills/pge-strict.md" \
+  "$HOME/.claude/skills/pge-quality.md" \
+  "$HOME/.claude/skills/pge-ultra.md" \
+  "$HOME/.claude/skills/pge-premium.md" \
+  "$COMMANDS_DIR/pge-premium.md" \
+  "$AGENTS_DIR/evaluator-premium.md"; do
   if [ -f "$old_file" ]; then
     rm "$old_file"
-    echo "[OK] Removed renamed file: $old_file"
+    echo "[OK] Removed legacy file: $old_file"
   fi
 done
 
