@@ -3,8 +3,8 @@
   "name": "pge-orchestrator",
   "description": "Planner-Generator-Evaluator autonomous build pipeline for Claude Code. Supports standard, strict, quality, ultra, and adaptive orchestrator modes.",
   "owner": {
-    "name": "",
-    "email": ""
+    "name": "orion-gz",
+    "email": "orion-gz@github.com"
   },
   "plugins": [
     {
@@ -12,8 +12,8 @@
       "description": "Autonomous multi-sprint product build pipeline. Planner writes spec → Generator implements → Evaluator tests via Playwright. Supports standard / strict / quality / ultra / adaptive orchestrator modes.",
       "version": "2.2.0",
       "author": {
-        "name": "",
-        "email": ""
+        "name": "orion-gz",
+        "email": "orion-gz@github.com"
       },
       "source": "./",
       "category": "productivity",
