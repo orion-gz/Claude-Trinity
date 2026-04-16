@@ -1,0 +1,32 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "pge-orchestrator",
+  "description": "Planner-Generator-Evaluator autonomous build pipeline for Claude Code. Supports standard, strict, quality, ultra, and adaptive orchestrator modes.",
+  "owner": {
+    "name": "",
+    "email": ""
+  },
+  "plugins": [
+    {
+      "name": "pge-orchestrator",
+      "description": "Autonomous multi-sprint product build pipeline. Planner writes spec → Generator implements → Evaluator tests via Playwright. Supports standard / strict / quality / ultra / adaptive orchestrator modes.",
+      "version": "2.2.0",
+      "author": {
+        "name": "",
+        "email": ""
+      },
+      "source": "./",
+      "category": "productivity",
+      "homepage": "",
+      "tags": [
+        "multi-agent",
+        "orchestration",
+        "pipeline",
+        "evaluator",
+        "autonomous-build",
+        "playwright"
+      ]
+    }
+  ],
+  "version": "2.2.0"
+}

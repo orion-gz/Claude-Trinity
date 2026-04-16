@@ -1,0 +1,36 @@
+{
+  "name": "pge-orchestrator",
+  "version": "2.2.0",
+  "description": "Planner-Generator-Evaluator pipeline orchestrator for Claude Code. Supports standard, strict, quality, ultra, and adaptive orchestrator modes.",
+  "author": "",
+  "claude_code_min_version": "1.0.0",
+  "skills": [
+    "src/skills/pge.md",
+    "src/skills/pge-strict.md",
+    "src/skills/pge-quality.md",
+    "src/skills/pge-ultra.md"
+  ],
+  "agent_patches": [
+    "src/agents/planner.patch",
+    "src/agents/generator.patch",
+    "src/agents/evaluator.patch"
+  ],
+  "agent_installs": [
+    "src/agents/evaluator-standard.md",
+    "src/agents/evaluator-strict.md",
+    "src/agents/evaluator-quality.md",
+    "src/agents/pge-orchestrator.md"
+  ],
+  "workspace_dir": "pge-workspace",
+  "triggers": [
+    "pge",
+    "pge build",
+    "/pge",
+    "pge-strict",
+    "/pge-strict",
+    "pge-quality",
+    "/pge-quality",
+    "pge-ultra",
+    "/pge-ultra"
+  ]
+}

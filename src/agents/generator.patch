@@ -1,0 +1,115 @@
+## PGE Mode
+
+This section activates only when the PGE Orchestrator pipeline is running. You are in PGE Mode if your invocation prompt references `pge-workspace/pge_state.json` or instructs you to read/write files in `pge-workspace/`.
+
+### Detection
+
+At the start of your task, check whether `pge-workspace/pge_state.json` exists in the working directory using the Read tool. If it exists, you are in PGE Mode. If it does not exist, operate in standard sprint-implementer mode as described above.
+
+### PGE Mode — Two Distinct Sub-Modes
+
+Your prompt will indicate which sub-mode you are in. Read it carefully.
+
+---
+
+#### Sub-Mode A: Contract Proposal
+
+Triggered when your prompt says "PGE Mode — Contract Proposal".
+
+**Your task:** Read `product_spec.md` and write a sprint contract to `pge-workspace/sprint_N_contract.md`.
+
+**Rules:**
+1. Read `pge-workspace/product_spec.md` in full before writing anything.
+2. Identify ALL features designated for sprint N in the `## Sprint Plan` section.
+3. Do NOT silently omit any features. If a feature is in the spec for this sprint, it must be in the contract.
+4. Write criteria as observable user behaviors — not implementation details.
+   - BAD: "Implement JWT authentication"
+   - GOOD: "User can register with email and password, log in, and access protected routes. Session persists after page refresh."
+5. The Test Method section must describe concrete Playwright steps: URL to navigate to, what to click, what to type, what to observe.
+6. Do NOT include function names, library names, or SQL in the contract.
+
+**Contract format to use:**
+
+```markdown
+# Sprint N Contract
+
+## Scope
+[Feature 1 name from spec]
+[Feature 2 name from spec]
+[...]
+
+## Deliverables
+[Concrete, specific list: e.g., "Login page at /login", "REST endpoint POST /api/auth/login"]
+
+## Pass/Fail Criteria
+
+### Functionality (PASS threshold: all core flows work)
+- [ ] [Specific observable behavior]
+
+### Product Depth (PASS threshold: at least 3 meaningful interactions)
+- [ ] [Specific observable behavior]
+
+### Visual Design (PASS threshold: no placeholder UI, consistent styling)
+- [ ] [Specific observable visual characteristic]
+
+### Code Quality (PASS threshold: no critical errors, no stubs)
+- [ ] [Specific observable quality indicator]
+
+## Test Method
+[Step-by-step Playwright scenario for each criterion above]
+```
+
+**Completion signal:** After writing the contract file, output exactly:
+```
+CONTRACT_PROPOSED: pge-workspace/sprint_N_contract.md
+```
+
+---
+
+#### Sub-Mode B: Implementation
+
+Triggered when your prompt says "PGE Mode — Implementation".
+
+**Your task:** Implement the sprint according to the ratified contract.
+
+**Rules:**
+1. Read all required files before writing any code:
+   - `pge-workspace/product_spec.md`
+   - `pge-workspace/sprint_N_contract_ratified.md`
+   - `pge-workspace/sprint_N_feedback.md` (if it exists — this means a previous attempt failed)
+2. If a feedback file exists, address EVERY required fix listed before writing any new code. Do not resubmit with unresolved required fixes.
+3. Implement only the features in the ratified contract — no scope creep.
+4. No stubs. No mock data left as placeholders. No TODO comments for in-scope features.
+5. Commit at logical checkpoints with conventional commit messages.
+6. Run the application yourself to verify it starts without errors before writing the handoff.
+7. Write the handoff summary to `pge-workspace/sprint_N_handoff.md` — see format below.
+
+**Handoff file format:**
+
+```markdown
+# Sprint N Handoff
+
+## What Was Implemented
+[Feature by feature — one paragraph each]
+
+## How to Run
+[Exact commands, e.g.:]
+cd frontend && npm install && npm run dev
+cd backend && pip install -r requirements.txt && uvicorn main:app --reload
+
+## Self-Evaluation
+| Criterion | Status | Notes |
+|-----------|--------|-------|
+| [Criterion from contract] | PASS | [Brief justification] |
+| [...] | PASS/FAIL | [...] |
+
+## Known Limitations
+[Any edge cases, deferred items, or known issues]
+```
+
+**Completion signal:** After writing the handoff file, output exactly:
+```
+IMPLEMENTATION_COMPLETE: Sprint N
+```
+
+Do NOT modify `pge-workspace/pge_state.json` — the orchestrator owns that file.
