@@ -57,6 +57,8 @@ Five modes are available. Choose based on the complexity and quality bar of your
 | **Quality** | `pge-quality` | `evaluator-quality` | ≥ 4/5 all criteria | Client-facing products |
 | **Ultra** | `pge-ultra` | All 3 evaluators, consensus | Majority (or unanimous) | High-stakes builds |
 | **Adaptive** | `pge-orchestrator` | Auto-selected per sprint | Varies per sprint | When you're not sure |
+| **idontcaretokenanymore** | `pge-idontcaretokenanymore` | `evaluator-quality` × 5, unanimous | 5/5 rounds, ≥ 4/5 each | Token cost irrelevant, max quality |
+| **God** | `pge-god` | `evaluator-godmode` × 10, unanimous | 10/10 rounds, ≥ 4.5/5 each | Absolute perfection |
 
 ---
 
@@ -74,6 +76,12 @@ pge-ultra "build a multi-tenant auth system with RBAC"
 
 # Let the pipeline decide (recommended when unsure)
 pge-orchestrator "build a real-time collaborative whiteboard"
+
+# Token cost is irrelevant — quality × 5 unanimous rounds
+pge-idontcaretokenanymore "build a customer-facing analytics dashboard"
+
+# Absolute ceiling — godmode × 10 unanimous rounds, ≥ 4.5/5
+pge-god "build a production-grade payment processing system"
 ```
 
 ---
@@ -265,6 +273,64 @@ prompt: |
   START_SPRINT: 1
   DRY_RUN: false
 ```
+
+---
+
+## `pge-idontcaretokenanymore` — Premium Unlimited Pipeline
+
+Token cost is irrelevant. Quality is the only priority. `evaluator-quality` runs 5 independent rounds per sprint — all 5 must pass unanimously (≥ 4/5 on all criteria). Up to 5 retries per sprint.
+
+```bash
+pge-idontcaretokenanymore "build a customer analytics dashboard"
+pge-idontcaretokenanymore "build a multi-step onboarding flow" --dry-run
+pge-idontcaretokenanymore --resume
+```
+
+**Per-sprint cost:** 5 isolated Evaluator runs + up to 5 Generator retries. Each round is a fully independent Playwright session — no shared context.
+
+**Aggregate report per sprint** (`sprint_N_eval_aggregate.md`):
+- Round-by-round verdicts (R1–R5)
+- Merged Required Fixes from all failing rounds
+- Round Variance Analysis — flags criteria with inconsistent scores across rounds
+
+---
+
+## `pge-god` — God Mode
+
+The absolute ceiling. Uses `evaluator-godmode` — a new evaluator with **half-point scoring (0–5 in 0.5 increments)** and a **≥ 4.5/5 pass threshold** on all four criteria. Runs 10 unanimous rounds per sprint. Up to 10 retries.
+
+```bash
+pge-god "build a production-grade payment processing system"
+pge-god "build a HIPAA-compliant patient records viewer"
+pge-god --resume
+```
+
+### `evaluator-godmode` — What makes it different
+
+| | `evaluator-quality` | `evaluator-godmode` |
+|--|--|--|
+| Scoring | Integer (1–5) | Half-point (1.0–5.0) |
+| Pass threshold | ≥ 4/5 | ≥ 4.5/5 |
+| Edge cases | Recommended | **Mandatory battery** |
+| Code review | Yes | **Deep review — reads source files** |
+| Performance | Noted | **Flagged if > 2s load / > 100ms interaction** |
+| Visual audit | Yes | **Pixel-level + responsive breakpoints** |
+| Path to 5.0 | No | **Required for every non-5.0 criterion** |
+
+### Mandatory testing protocol (every round)
+1. Core flow exhaustion — all branches including failure paths
+2. Edge case battery — empty states, boundaries, rapid actions, session persistence, concurrent ops
+3. Error handling audit — every error state must show a user-facing message
+4. Visual perfection audit — responsive, loading states, hover/focus/active states
+5. Performance observation — load time, interaction lag, memory leaks
+6. Code quality deep review — reads implementation files directly
+
+### God Mode aggregate report
+Each sprint produces a `sprint_N_eval_aggregate.md` with:
+- 10-round score table (all four criteria per round)
+- Score Distribution Analysis — min/max/avg per criterion, variance flagging
+- Required Fixes (Union) across all failing rounds
+- **Path to 10/10** — improvement roadmap even on passing sprints
 
 ---
 

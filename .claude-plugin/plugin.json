@@ -1,6 +1,6 @@
 {
   "name": "pge-orchestrator",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "Autonomous Planner-Generator-Evaluator pipeline for Claude Code. One prompt → full product.",
   "author": {
     "name": "orion-gz",

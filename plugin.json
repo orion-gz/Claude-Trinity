@@ -1,14 +1,16 @@
 {
   "name": "pge-orchestrator",
-  "version": "2.3.0",
-  "description": "Planner-Generator-Evaluator pipeline orchestrator for Claude Code. Supports standard, strict, quality, ultra, and adaptive orchestrator modes.",
+  "version": "2.4.0",
+  "description": "Planner-Generator-Evaluator pipeline orchestrator for Claude Code. Supports standard, strict, quality, ultra, adaptive, idontcaretokenanymore, and god modes.",
   "author": "orion-gz",
   "claude_code_min_version": "1.0.0",
   "skills": [
     "skills/pge/SKILL.md",
     "skills/pge-strict/SKILL.md",
     "skills/pge-quality/SKILL.md",
-    "skills/pge-ultra/SKILL.md"
+    "skills/pge-ultra/SKILL.md",
+    "skills/pge-idontcaretokenanymore/SKILL.md",
+    "skills/pge-god/SKILL.md"
   ],
   "agents": [
     "agents/planner.md",
@@ -17,6 +19,7 @@
     "agents/evaluator-standard.md",
     "agents/evaluator-strict.md",
     "agents/evaluator-quality.md",
+    "agents/evaluator-godmode.md",
     "agents/pge-orchestrator.md"
   ]
 }

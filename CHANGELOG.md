@@ -1,5 +1,44 @@
 # Changelog
 
+## [2.4.0] — 2026-04-17
+
+### Added — `pge-idontcaretokenanymore` & `pge-god` premium modes
+
+#### `pge-idontcaretokenanymore`
+- `evaluator-quality` × 5 rounds, unanimous consensus per sprint
+- All 5 rounds must pass (≥ 4/5 on all criteria)
+- Up to 5 retries per sprint
+- Round Variance Analysis in aggregate report
+
+#### `pge-god`
+- New `evaluator-godmode` agent — half-point scoring (1.0–5.0), ≥ 4.5/5 threshold
+- Mandatory testing protocol: core flow exhaustion, edge case battery, error handling audit, visual perfection audit, performance observation, code quality deep review (reads source files)
+- `evaluator-godmode` × 10 rounds, unanimous consensus per sprint
+- Up to 10 retries per sprint
+- Aggregate report includes Score Distribution Analysis and "Path to 10/10" section
+- God Mode escalation offers fallback to `pge-idontcaretokenanymore`
+
+---
+
+## [2.3.0] — 2026-04-17
+
+### Added — Base agents bundled in plugin
+- `planner.md`, `generator.md`, `evaluator.md` now shipped in `src/agents/` and installed directly to `~/.claude/agents/`
+- No prerequisite agents required — install.sh handles everything
+- Existing agent files backed up as `.bak` before overwrite
+
+---
+
+## [2.2.0] — 2026-04-17
+
+### Added — `pge-orchestrator` adaptive agent
+- Complexity analysis (5 dimensions, 0–10 score) → auto base evaluator mode
+- Per-sprint evaluator assignment from planner signals (`HIGH_RISK_SPRINTS`, `SUGGEST_MODE`)
+- Adaptive retry escalation: standard → quality → strict → ultra on repeated failures
+- Callable as `subagent_type: "pge-orchestrator"` from other agents
+
+---
+
 ## [2.1.0] — 2026-04-16
 
 ### Changed — Evaluator & Skill Renames
