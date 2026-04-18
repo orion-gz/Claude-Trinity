@@ -162,6 +162,30 @@ PGE Pre-flight Check
   ✓  PGE skills installed  (/pge, /pge-strict, /pge-quality ...)
 ```
 
+### `pge-update` — Update plugin to latest version
+
+Pulls the latest changes from GitHub and re-installs all skills and agents. Run this instead of uninstall → reinstall.
+
+```bash
+node bridge/pge-update.cjs
+```
+
+```
+PGE Update
+
+  Plugin root: /path/to/plugin
+
+  Current version: 2.4.0
+
+  Pulling latest from origin/main ...
+
+  2.4.0 → 2.5.0
+  ✓  Skills updated  (6/6)
+  ✓  Agents updated  (8/8)
+
+Update complete. Restart Claude Code to apply changes.
+```
+
 ### `pge-clean` — Workspace cleanup
 
 Deletes `pge-workspace/` to start fresh. Prompts for confirmation unless `--force` is passed.
