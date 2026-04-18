@@ -47,7 +47,17 @@ try {
   const agent = activeAgent(state);
   const sprint = st > 0 ? `${sn}/${st}` : `${sn}`;
   const retry  = fc > 0 ? ` ✗${fc}` : '';
-  const parts  = [`${icon} PGE ${mode}`, `sprint ${sprint}`, agent, retry].filter(Boolean);
+  // Check if paused due to usage limit
+  const pauseSignalPath = path.join(process.cwd(), 'pge-workspace', '.pause-signal');
+  const isPaused = state.phase === 'PAUSED' || fs.existsSync(pauseSignalPath);
+
+  const parts  = [
+    isPaused ? '⏸️ ' : icon,
+    isPaused ? `PGE PAUSED` : `PGE ${mode}`,
+    `sprint ${sprint}`,
+    !isPaused && agent,
+    !isPaused && retry,
+  ].filter(Boolean);
   process.stdout.write(parts.join(' · '));
 } catch {
   // No active pipeline — output nothing so the status line stays clean

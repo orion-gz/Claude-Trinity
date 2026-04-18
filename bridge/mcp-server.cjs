@@ -15,6 +15,7 @@ const SKILLS = [
   'pge-update', 'pge-autolaunch',
   'pge-statusline', 'pge-preflight', 'pge-clean', 'pge-summary',
   'pge-indicator', 'pge-notify', 'pge-eval-backend',
+  'pge-limit',
 ];
 const AGENTS = [
   'planner', 'generator', 'evaluator',
@@ -256,6 +257,81 @@ function status() {
   ].join('\n');
 }
 
+// ── Usage limit guard ─────────────────────────────────────────────────────────
+const LIMIT_CONFIG_PATH = path.join(os.homedir(), '.claude', 'pge-limit-config.json');
+const GUARD_PID_FILE    = '/tmp/pge-usage-guard.pid';
+
+function setLimit({ threshold, type = '5h', maxTokens = null, cwd }) {
+  const cfg = {
+    threshold : Number(threshold),
+    type,
+    maxTokens : maxTokens ? Number(maxTokens) : null,
+    enabled   : true,
+    setAt     : new Date().toISOString(),
+  };
+  fs.writeFileSync(LIMIT_CONFIG_PATH, JSON.stringify(cfg, null, 2));
+
+  // Kill any previous guard
+  try {
+    const pid = Number(fs.readFileSync(GUARD_PID_FILE, 'utf8').trim());
+    if (pid) process.kill(pid, 0) && process.kill(pid, 'SIGTERM');
+  } catch {}
+
+  // Start new guard in background
+  const { spawn } = require('child_process');
+  const guard = spawn(
+    process.execPath,
+    [BRIDGE('pge-usage-guard'), cwd || process.cwd()],
+    { detached: true, stdio: 'ignore' },
+  );
+  guard.unref();
+
+  const maxStr = maxTokens
+    ? `${Number(maxTokens).toLocaleString()} tokens`
+    : 'auto-detect (ccusage) — run with --max <tokens> if not installed';
+
+  return [
+    '============================================================',
+    `  PGE Usage Guard — ENABLED`,
+    `  Threshold : ${threshold}% of ${type} limit`,
+    `  Max tokens: ${maxStr}`,
+    `  Config    : ${LIMIT_CONFIG_PATH}`,
+    '',
+    `  The pipeline will pause at the next phase boundary when`,
+    `  usage reaches ${threshold}%. Resume after limit resets:`,
+    `  → pge --resume`,
+    '============================================================',
+  ].join('\n');
+}
+
+function clearLimit() {
+  try { fs.unlinkSync(LIMIT_CONFIG_PATH); } catch {}
+  try {
+    const pid = Number(fs.readFileSync(GUARD_PID_FILE, 'utf8').trim());
+    if (pid) process.kill(pid, 'SIGTERM');
+  } catch {}
+  try { fs.unlinkSync(GUARD_PID_FILE); } catch {}
+  return 'PGE Usage Guard disabled. No limit threshold is active.';
+}
+
+function limitStatus() {
+  try {
+    const cfg = JSON.parse(fs.readFileSync(LIMIT_CONFIG_PATH, 'utf8'));
+    const maxStr = cfg.maxTokens
+      ? `${Number(cfg.maxTokens).toLocaleString()} tokens`
+      : 'auto-detect (ccusage)';
+    return [
+      `PGE Usage Guard: ${cfg.enabled ? 'ENABLED' : 'DISABLED'}`,
+      `  Threshold : ${cfg.threshold}%`,
+      `  Window    : ${cfg.type || '5h'}`,
+      `  Max tokens: ${maxStr}`,
+      `  Set at    : ${cfg.setAt || 'unknown'}`,
+    ].join('\n');
+  } catch {
+    return 'PGE Usage Guard: DISABLED (no config found).\nUse /pge-limit <percentage> to enable.';
+  }
+}
+
 // ── MCP tools list ────────────────────────────────────────────────────────────
 const TOOLS = [
   { name: 'pge_status',          description: 'Show PGE installation status, auto-launch, and status-line state.' },
@@ -283,9 +359,33 @@ const TOOLS = [
       required: [],
     },
   },
+  {
+    name: 'pge_set_limit',
+    description: 'Enable the PGE usage guard. Saves a threshold config and starts the background monitor.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        threshold : { type: 'number',  description: 'Pause at this % of the usage limit (1–99)' },
+        type      : { type: 'string',  enum: ['5h', 'weekly'], description: 'Time window (default: 5h)' },
+        maxTokens : { type: 'number',  description: 'Your plan\'s max tokens per window (optional — falls back to ccusage)' },
+        cwd       : { type: 'string',  description: 'Project directory (optional)' },
+      },
+      required: ['threshold'],
+    },
+  },
+  {
+    name: 'pge_clear_limit',
+    description: 'Disable the PGE usage guard and remove the threshold config.',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'pge_limit_status',
+    description: 'Show current PGE usage guard configuration.',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+  },
 ].map((t, i, arr) => {
-  // pge_eval_backend already has its own inputSchema
-  if (t.name === 'pge_eval_backend') return t;
+  // These tools already have their own inputSchema
+  if (['pge_eval_backend', 'pge_set_limit', 'pge_clear_limit', 'pge_limit_status'].includes(t.name)) return t;
   return { ...t, inputSchema: { type: 'object', properties: { cwd: { type: 'string', description: 'Project directory (optional, defaults to current)' } }, required: [] } };
 });
 
@@ -333,6 +433,9 @@ rl.on('line', (line) => {
         const global  = msg.params?.arguments?.global  || false;
         text = evalBackend(action, backend, global, cwd);
       }
+      else if (name === 'pge_set_limit')    text = setLimit(msg.params?.arguments || {});
+      else if (name === 'pge_clear_limit')  text = clearLimit();
+      else if (name === 'pge_limit_status') text = limitStatus();
       else text = `Unknown tool: ${name}`;
     } catch (e) { text = `Error: ${e.message}`; }
     send({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text }] } });

@@ -30,7 +30,7 @@ Then:
 /plugin install pge-orchestrator
 ```
 
-Restart Claude Code. All 15 skills and 10 agents are installed automatically.
+Restart Claude Code. All 16 skills and 10 agents are installed automatically.
 
 > **Alternative (manual install)**
 > ```bash
@@ -100,7 +100,7 @@ Or as a one-time flag:
 
 ## Terminal Tools
 
-Eight slash commands for monitoring and managing pipelines directly from Claude Code, plus raw Node.js scripts for use in a separate terminal pane.
+Nine slash commands for monitoring and managing pipelines directly from Claude Code, plus raw Node.js scripts for use in a separate terminal pane.
 
 ### `/pge-update` — Update from inside Claude Code
 
@@ -234,6 +234,37 @@ Starts a background notification watcher that fires a system notification when a
 ```
 
 Fires on: **sprint pass**, **sprint fail / retry**, **pipeline done**, **escalation** (human intervention needed).
+
+### `/pge-limit` — Usage-based auto-pause
+
+Set a token usage threshold. When Claude Code usage reaches the specified percentage of the 5-hour or weekly limit, PGE saves a compact checkpoint and stops gracefully at the next phase boundary. Resume after your limit resets with `pge --resume` — no extra context re-read overhead.
+
+```
+/pge-limit <percentage>                   # pause at N% of 5h limit (auto-detect max)
+/pge-limit <percentage> --type weekly     # weekly window
+/pge-limit <percentage> --max <tokens>    # explicit token ceiling (e.g. --max 45000000)
+/pge-limit off                            # disable
+/pge-limit status                         # show current config
+```
+
+**Examples:**
+```
+/pge-limit 80                             # stop at 80% of 5h token limit
+/pge-limit 75 --type weekly               # stop at 75% of weekly limit
+/pge-limit 80 --max 45000000             # explicit 45M token ceiling, stop at 80%
+```
+
+**What happens when the threshold is reached:**
+
+1. Background guard (`pge-usage-guard.cjs`) detects usage ≥ threshold
+2. Writes `pge-workspace/.pause-signal`
+3. Orchestrator picks it up at the next phase boundary (never mid-execution)
+4. Compact checkpoint saved to `pge-workspace/pge_checkpoint.md`
+5. State written as `PAUSED` in `pge_state.json`
+6. macOS notification fires
+7. Resume after limit resets: `pge --resume`
+
+If `--max` is omitted, the guard falls back to `ccusage` (if installed) to determine usage percentage. Install with: `npm i -g ccusage`
 
 ---
 
@@ -636,7 +667,11 @@ pge-workspace/
 ├── sprint_1_eval_standard.md
 ├── sprint_1_eval_strict.md
 ├── sprint_1_eval_quality.md
-└── sprint_1_eval_aggregate.md            # Consensus verdict + merged Required Fixes
+├── sprint_1_eval_aggregate.md            # Consensus verdict + merged Required Fixes
+│
+# pge-limit (usage guard):
+├── .pause-signal                         # Written by guard when threshold is reached
+└── pge_checkpoint.md                     # Compact resume context (written on PAUSED)
 ```
 
 ### `pge_state.json` fields
@@ -644,7 +679,7 @@ pge-workspace/
 ```json
 {
   "mode": "standard | strict | quality | ultra | orchestrator",
-  "phase": "PLANNING | CONTRACTING | IMPLEMENTING | EVALUATING | FIXING | DONE | ESCALATED",
+  "phase": "PLANNING | CONTRACTING | IMPLEMENTING | EVALUATING | FIXING | DONE | ESCALATED | PAUSED",
   "eval_backend": "claude | codex | gemini",
   "sprint_num": 2,
   "total_sprints": 5,
@@ -716,6 +751,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full version history.
 
 | Version | Summary |
 |---------|---------|
+| **2.7.0** | Added `/pge-limit` — usage-based auto-pause with compact checkpoint/resume; background `pge-usage-guard.cjs` monitors token usage and signals pipeline to stop gracefully at the next phase boundary; new `PAUSED` state with `pge --resume` support |
 | **2.6.0** | Added evaluator backend selection (`/pge-eval-backend`) — run evaluation via Codex or Gemini CLI using tmux; added `evaluator-codex` and `evaluator-gemini` agents; `--eval-backend` flag for all pipeline modes |
 | **2.5.0** | Added 8 slash commands (`/pge-statusline`, `/pge-preflight`, `/pge-clean`, `/pge-summary`, `/pge-indicator`, `/pge-notify`, `/pge-update`, `/pge-autolaunch`), MCP server with 11 tools, status bar integration, auto-launch hook |
 | **2.2.0** | Added `pge-orchestrator` adaptive agent with complexity analysis, per-sprint evaluator assignment, and retry escalation |

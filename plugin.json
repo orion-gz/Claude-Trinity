@@ -10,7 +10,8 @@
     "skills/pge-quality/SKILL.md",
     "skills/pge-ultra/SKILL.md",
     "skills/pge-idontcaretokenanymore/SKILL.md",
-    "skills/pge-god/SKILL.md"
+    "skills/pge-god/SKILL.md",
+    "skills/pge-limit/SKILL.md"
   ],
   "agents": [
     "agents/planner.md",

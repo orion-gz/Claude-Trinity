@@ -79,6 +79,76 @@ If `{eval_backend}` ≠ `claude`, also print:
 
 ---
 
+## Step 1.6: Pause Guard Protocol
+
+Before executing each major phase (6A, 6E, 6F, 6H), check for a pause signal:
+
+```bash
+[ -f "pge-workspace/.pause-signal" ] && echo "__PAUSE_DETECTED__"
+```
+
+If `__PAUSE_DETECTED__` is printed, execute the **Pause Procedure** and stop.
+
+### Pause Procedure
+
+1. Read the signal file:
+   ```bash
+   cat pge-workspace/.pause-signal
+   ```
+
+2. Write a compact checkpoint to `pge-workspace/pge_checkpoint.md`:
+   ```markdown
+   # PGE Pause Checkpoint
+
+   **Paused at:** {current ISO timestamp}
+   **Reason:** Usage limit threshold reached ({usagePct}% of {type} window)
+
+   ## Resume State
+   - Sprint: {sprint_num} / {total_sprints}
+   - Next phase: {phase about to execute}
+   - Evaluator: {evaluator_mode}
+   - Backend: {eval_backend}
+   - Fail count: {fail_count}
+
+   ## Completed Sprints
+   {list each completed sprint: "Sprint N: PASS" or "Sprint N: FAIL (N attempts)"}
+
+   ## Key Files
+   - Spec: pge-workspace/product_spec.md
+   - Contract (current sprint): {artifacts.contract or "not yet ratified"}
+
+   ## Resume Instructions
+   When usage limit resets, run: **pge --resume**
+   Continue from: {phase} — Sprint {sprint_num}
+   ```
+
+3. Update `pge_state.json`:
+   - `"phase"` → `"PAUSED"`
+   - `"paused_before_phase"` → the phase that was about to execute
+   - `"paused_at"` → current ISO timestamp
+
+4. Remove the signal file:
+   ```bash
+   rm pge-workspace/.pause-signal
+   ```
+
+5. Print the pause banner and **stop**:
+   ```
+   ============================================================
+     PGE PIPELINE — PAUSED (USAGE LIMIT)
+   ============================================================
+     Usage has reached the configured threshold.
+     All work is saved. Resume after your limit resets:
+
+     → pge --resume
+
+     Checkpoint : pge-workspace/pge_checkpoint.md
+     State      : pge-workspace/pge_state.json
+   ============================================================
+   ```
+
+---
+
 ## Step 2: Initialize Working Directory
 
 Check whether `pge-workspace/` exists. If not, create it:
@@ -188,6 +258,8 @@ Set `current_sprint` = `sprint_num` from state. Repeat for each sprint from `cur
 
 ### 6A. Print Sprint Banner
 
+> **Pause check**: Before printing this banner, run the Step 1.6 guard check. If a pause signal is detected, execute the Pause Procedure and stop.
+
 ```
 ============================================================
   SPRINT {current_sprint} / {total_sprints}  [{evaluator_mode} evaluator]
@@ -255,6 +327,8 @@ Advance to next sprint.
 
 ### 6E. IMPLEMENTING — Generator Implements Sprint
 
+> **Pause check**: Before printing this banner, run the Step 1.6 guard check. If a pause signal is detected, execute the Pause Procedure and stop.
+
 Print:
 ```
 ------------------------------------------------------------
@@ -288,6 +362,8 @@ prompt: |
 Verify `pge-workspace/sprint_{current_sprint}_handoff.md` exists after completion.
 
 ### 6F. EVALUATING — Evaluator Tests Implementation
+
+> **Pause check**: Before printing this banner, run the Step 1.6 guard check. If a pause signal is detected, execute the Pause Procedure and stop.
 
 Print:
 ```
@@ -374,6 +450,8 @@ Increment `fail_count` in state by 1.
 If `fail_count >= max_retries`: trigger Section 9 (Escalation). Otherwise proceed to 6H.
 
 ### 6H. FIXING — Extract Feedback and Retry
+
+> **Pause check**: Before printing this banner, run the Step 1.6 guard check. If a pause signal is detected, execute the Pause Procedure and stop.
 
 Print:
 ```
@@ -467,6 +545,12 @@ When `--resume` is passed:
    - `"IMPLEMENTING"` → Step 6E for current `sprint_num`
    - `"EVALUATING"` → Step 6F for current `sprint_num`
    - `"FIXING"` → Step 6H for current `sprint_num`
+   - `"PAUSED"` → Read `paused_before_phase` from state. Read `pge-workspace/pge_checkpoint.md` for compact context (do NOT re-read product_spec.md or prior sprint files — they are on disk). Remove the PAUSED status and set phase to `paused_before_phase`. Then route as if that phase were active:
+     - `"CONTRACTING"` → Step 6B
+     - `"IMPLEMENTING"` → Step 6E
+     - `"EVALUATING"` → Step 6F
+     - `"FIXING"` → Step 6H
+     - `"PLANNING"` → Step 5
    - `"DONE"` → print "Pipeline already complete." and stop.
 
 4. Restore `{evaluator_mode}` and `{evaluator_agent}` from the state file's `"evaluator_mode"` field. Restore `{eval_backend}` from `"eval_backend"` (default `claude` if missing).
