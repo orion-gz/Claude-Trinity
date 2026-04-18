@@ -14,6 +14,7 @@ pge "user prompt"
 pge "user prompt" --dry-run
 pge "user prompt" --sprint 3
 pge "user prompt" --evaluator [standard|strict|quality]
+pge "user prompt" --eval-backend [claude|codex|gemini]
 pge --resume
 ```
 
@@ -25,6 +26,7 @@ Inspect the user's input for these flags:
 - `--sprint N`: After planning, begin at sprint N instead of sprint 1.
 - `--dry-run`: Run planning + contract negotiation for all sprints, skip implementation. Stop after all contracts are ratified.
 - `--evaluator [standard|strict|quality]`: Select evaluation mode (default: `standard`).
+- `--eval-backend [claude|codex|gemini]`: Override evaluator backend for this run only (not persisted). Default: read from config (see Step 1.5).
 
 **Evaluator mode → subagent mapping:**
 | Flag value | subagent_type | Eval prompt tag | Pass threshold |
@@ -36,7 +38,46 @@ Inspect the user's input for these flags:
 Store extracted values as:
 - `{user_prompt}` — everything that is not a flag
 - `{evaluator_mode}` — the selected mode string
-- `{evaluator_agent}` — the mapped subagent_type
+- `{evaluator_agent}` — the mapped subagent_type (used only when eval_backend = claude)
+- `{eval_backend_flag}` — value of `--eval-backend` flag, or empty string if not provided
+
+## Step 1.5: Read Eval Backend Config
+
+Determine which AI backend will run the evaluation phase:
+
+1. If `{eval_backend_flag}` is set (from `--eval-backend` flag): use that value as `{eval_backend}` (one-time override, not persisted).
+2. Else, use Bash to check for persistent config:
+   ```bash
+   if [ -f "pge-workspace/.eval-backend" ]; then
+     cat pge-workspace/.eval-backend
+   elif [ -f "$HOME/.claude/pge-eval-backend" ]; then
+     cat "$HOME/.claude/pge-eval-backend"
+   else
+     echo "claude"
+   fi
+   ```
+3. Validate the result is one of `claude`, `codex`, `gemini`. If not, warn and default to `claude`.
+
+Set `{eval_backend}` = the determined value.
+
+**Backend routing table:**
+| `{eval_backend}` | Evaluation method | Subagent spawned |
+|-----------------|-------------------|-----------------|
+| `claude` (default) | Playwright + code review | `{evaluator_agent}` (per mode) |
+| `codex` | Static code review via Codex CLI + tmux | `evaluator-codex` |
+| `gemini` | Static code review via Gemini CLI + tmux | `evaluator-gemini` |
+
+Print:
+```
+  [CONFIG] Eval backend: {eval_backend}
+```
+If `{eval_backend}` ≠ `claude`, also print:
+```
+  [NOTE] External backend active — evaluation uses static code analysis (no Playwright).
+         To change: /pge-eval-backend [claude|codex|gemini]
+```
+
+---
 
 ## Step 2: Initialize Working Directory
 
@@ -55,6 +96,7 @@ Check whether `pge-workspace/pge_state.json` exists.
 {
   "phase": "PLANNING",
   "evaluator_mode": "{evaluator_mode}",
+  "eval_backend": "{eval_backend}",
   "sprint_num": 1,
   "total_sprints": 5,
   "fail_count": 0,
@@ -85,9 +127,10 @@ Check whether `pge-workspace/pge_state.json` exists.
 ```
 ============================================================
   PGE ORCHESTRATOR — PIPELINE START
-  Prompt:   {user_prompt}
+  Prompt:    {user_prompt}
   Evaluator: {evaluator_mode}
-  State:    pge-workspace/pge_state.json
+  Backend:   {eval_backend}
+  State:     pge-workspace/pge_state.json
 ============================================================
 ```
 
@@ -255,8 +298,11 @@ Print:
 
 Update state: `"phase"` → `"EVALUATING"`.
 
-Spawn Evaluator (use `{evaluator_agent}` as subagent_type):
+**Route based on `{eval_backend}`:**
 
+**If `{eval_backend}` = `claude`** (default — full Playwright evaluation):
+
+Spawn Evaluator (use `{evaluator_agent}` as subagent_type):
 ```
 subagent_type: "{evaluator_agent}"
 prompt: |
@@ -269,6 +315,42 @@ prompt: |
   WRITE: pge-workspace/sprint_{current_sprint}_evaluation.md
 
   Signal: EVALUATION_COMPLETE: PASS or EVALUATION_COMPLETE: FAIL
+```
+
+**If `{eval_backend}` = `codex`** (static code-review via Codex CLI):
+
+Print:
+```
+  [BACKEND] Using Codex CLI evaluator (static analysis — no Playwright)
+```
+Spawn:
+```
+subagent_type: "evaluator-codex"
+prompt: |
+  BACKEND: codex
+  MODE: {evaluator_mode}
+  SPRINT: {current_sprint}
+  CONTRACT: pge-workspace/sprint_{current_sprint}_contract_ratified.md
+  HANDOFF: pge-workspace/sprint_{current_sprint}_handoff.md
+  EVALUATION_OUTPUT: pge-workspace/sprint_{current_sprint}_evaluation.md
+```
+
+**If `{eval_backend}` = `gemini`** (static code-review via Gemini CLI):
+
+Print:
+```
+  [BACKEND] Using Gemini CLI evaluator (static analysis — no Playwright)
+```
+Spawn:
+```
+subagent_type: "evaluator-gemini"
+prompt: |
+  BACKEND: gemini
+  MODE: {evaluator_mode}
+  SPRINT: {current_sprint}
+  CONTRACT: pge-workspace/sprint_{current_sprint}_contract_ratified.md
+  HANDOFF: pge-workspace/sprint_{current_sprint}_handoff.md
+  EVALUATION_OUTPUT: pge-workspace/sprint_{current_sprint}_evaluation.md
 ```
 
 Read `pge-workspace/sprint_{current_sprint}_evaluation.md`. Update state: `"artifacts.evaluation"` → evaluation file path.
@@ -372,6 +454,7 @@ When `--resume` is passed:
      PGE ORCHESTRATOR — RESUMING
      Phase:     {phase}
      Evaluator: {evaluator_mode}
+     Backend:   {eval_backend}
      Sprint:    {sprint_num} / {total_sprints}
      Fail count: {fail_count}
      Checkpoint: {last_checkpoint}
@@ -386,7 +469,7 @@ When `--resume` is passed:
    - `"FIXING"` → Step 6H for current `sprint_num`
    - `"DONE"` → print "Pipeline already complete." and stop.
 
-4. Restore `{evaluator_mode}` and `{evaluator_agent}` from the state file's `"evaluator_mode"` field.
+4. Restore `{evaluator_mode}` and `{evaluator_agent}` from the state file's `"evaluator_mode"` field. Restore `{eval_backend}` from `"eval_backend"` (default `claude` if missing).
 
 ---
 
@@ -423,6 +506,7 @@ Stop execution and wait for user action.
 {
   "phase": "PLANNING | CONTRACTING | IMPLEMENTING | EVALUATING | FIXING | DONE | ESCALATED",
   "evaluator_mode": "standard | strict | quality",
+  "eval_backend": "claude | codex | gemini",
   "sprint_num": 1,
   "total_sprints": 5,
   "fail_count": 0,

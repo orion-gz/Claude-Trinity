@@ -14,11 +14,12 @@ const SKILLS = [
   'pge-idontcaretokenanymore', 'pge-god',
   'pge-update', 'pge-autolaunch',
   'pge-statusline', 'pge-preflight', 'pge-clean', 'pge-summary',
-  'pge-indicator', 'pge-notify',
+  'pge-indicator', 'pge-notify', 'pge-eval-backend',
 ];
 const AGENTS = [
   'planner', 'generator', 'evaluator',
   'evaluator-standard', 'evaluator-strict', 'evaluator-quality', 'evaluator-godmode',
+  'evaluator-codex', 'evaluator-gemini',
   'pge-orchestrator',
 ];
 
@@ -201,6 +202,23 @@ function openIndicator(cwd) {
   return `Indicator terminal opened for: ${dir}`;
 }
 
+// ── Eval backend ─────────────────────────────────────────────────────────────
+function evalBackend(action, backend, isGlobal, cwd) {
+  const args = ['node', BRIDGE('pge-eval-backend')];
+  if (action === 'set' && backend) {
+    args.push('set', backend);
+    if (isGlobal) args.push('--global');
+  } else if (action === 'clear') {
+    args.push('clear');
+  } else {
+    args.push('show');
+  }
+  if (cwd) args.push(cwd);
+  const [cmd, ...rest] = args;
+  const r = spawnSync(cmd, rest, { cwd: cwd || process.cwd(), encoding: 'utf8' });
+  return (r.stdout + r.stderr).trim();
+}
+
 // ── Start notify ──────────────────────────────────────────────────────────────
 function startNotify(cwd) {
   const dir = cwd || process.cwd();
@@ -217,13 +235,24 @@ function status() {
   const slEnabled = slCmd === SL_CMD || slCmd === SL_SOLO;
   const installedSkills = SKILLS.filter(sk => fs.existsSync(path.join(COMMANDS_DIR, `${sk}.md`)));
   const installedAgents = AGENTS.filter(a  => fs.existsSync(path.join(AGENTS_DIR,   `${a}.md`)));
+
+  // Read active eval backend (project or global)
+  let evalBackendVal = 'claude (default)';
+  const projCfg = path.join(process.cwd(), 'pge-workspace', '.eval-backend');
+  const globalCfg = path.join(os.homedir(), '.claude', 'pge-eval-backend');
+  try {
+    if (fs.existsSync(projCfg))   evalBackendVal = fs.readFileSync(projCfg, 'utf8').trim() + ' (project)';
+    else if (fs.existsSync(globalCfg)) evalBackendVal = fs.readFileSync(globalCfg, 'utf8').trim() + ' (global)';
+  } catch {}
+
   return [
-    `PGE Orchestrator v2.5.0`,
+    `PGE Orchestrator v2.6.0`,
     `Plugin root  : ${PLUGIN_ROOT}`,
     `Skills  (${installedSkills.length}/${SKILLS.length}): ${installedSkills.join(', ') || 'none'}`,
     `Agents  (${installedAgents.length}/${AGENTS.length}): ${installedAgents.join(', ') || 'none'}`,
     `Auto-launch  : ${isAutolaunchEnabled(s) ? 'enabled' : 'disabled'}`,
     `Status line  : ${slEnabled ? 'enabled' : 'disabled'}`,
+    `Eval backend : ${evalBackendVal}`,
   ].join('\n');
 }
 
@@ -240,7 +269,25 @@ const TOOLS = [
   { name: 'pge_summary',         description: 'Show sprint-by-sprint results summary. Pass cwd in input.' },
   { name: 'pge_indicator',       description: 'Open a live agent indicator in a new Terminal window. Pass cwd in input.' },
   { name: 'pge_notify',          description: 'Start macOS notification watcher in background. Pass cwd in input.' },
-].map(t => ({ ...t, inputSchema: { type: 'object', properties: { cwd: { type: 'string', description: 'Project directory (optional, defaults to current)' } }, required: [] } }));
+  {
+    name: 'pge_eval_backend',
+    description: 'Get or set the evaluator backend (claude/codex/gemini) for PGE pipelines. claude=full Playwright; codex/gemini=static code review via tmux.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action:  { type: 'string', enum: ['show', 'set', 'clear'], description: 'show=display current; set=write config; clear=remove project override' },
+        backend: { type: 'string', enum: ['claude', 'codex', 'gemini'], description: 'Backend to set (required when action=set)' },
+        global:  { type: 'boolean', description: 'If true, writes to global ~/.claude/pge-eval-backend instead of project-level' },
+        cwd:     { type: 'string',  description: 'Project directory (optional)' },
+      },
+      required: [],
+    },
+  },
+].map((t, i, arr) => {
+  // pge_eval_backend already has its own inputSchema
+  if (t.name === 'pge_eval_backend') return t;
+  return { ...t, inputSchema: { type: 'object', properties: { cwd: { type: 'string', description: 'Project directory (optional, defaults to current)' } }, required: [] } };
+});
 
 // ── MCP server ────────────────────────────────────────────────────────────────
 function send(obj) { process.stdout.write(JSON.stringify(obj) + '\n'); }
@@ -256,7 +303,7 @@ rl.on('line', (line) => {
 
   if (method === 'initialize') {
     try { install(); } catch {}
-    send({ jsonrpc: '2.0', id, result: { protocolVersion: '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'pge-orchestrator', version: '2.5.0' } } });
+    send({ jsonrpc: '2.0', id, result: { protocolVersion: '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'pge-orchestrator', version: '2.6.0' } } });
 
   } else if (method === 'notifications/initialized') {
     // no response
@@ -280,6 +327,12 @@ rl.on('line', (line) => {
       else if (name === 'pge_summary')        text = summary(cwd);
       else if (name === 'pge_indicator')      text = openIndicator(cwd);
       else if (name === 'pge_notify')         text = startNotify(cwd);
+      else if (name === 'pge_eval_backend') {
+        const action  = msg.params?.arguments?.action  || 'show';
+        const backend = msg.params?.arguments?.backend;
+        const global  = msg.params?.arguments?.global  || false;
+        text = evalBackend(action, backend, global, cwd);
+      }
       else text = `Unknown tool: ${name}`;
     } catch (e) { text = `Error: ${e.message}`; }
     send({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text }] } });

@@ -30,7 +30,7 @@ Then:
 /plugin install pge-orchestrator
 ```
 
-Restart Claude Code. All 14 skills and 8 agents are installed automatically.
+Restart Claude Code. All 15 skills and 10 agents are installed automatically.
 
 > **Alternative (manual install)**
 > ```bash
@@ -80,6 +80,21 @@ PGE writes a full product spec, implements sprint by sprint, and tests each spri
 | Absolute ceiling (godmode × 10 rounds) | `/pge-god` |
 
 Not sure which to pick? Use `/pge-orchestrator` — it analyzes your prompt and assigns the right evaluator per sprint automatically.
+
+### Switch the evaluator backend
+
+By default, the Evaluator runs as a Claude agent with full Playwright browser testing. You can switch to **Codex** or **Gemini CLI** for static code-review evaluation:
+
+```
+/pge-eval-backend codex    # use Codex CLI (no Playwright — static analysis only)
+/pge-eval-backend gemini   # use Gemini CLI (no Playwright — static analysis only)
+/pge-eval-backend claude   # restore full Playwright evaluation (default)
+```
+
+Or as a one-time flag:
+```
+/pge "build a habit tracker" --eval-backend codex
+```
 
 ---
 
@@ -185,6 +200,31 @@ Opens a new Terminal window with the live agent indicator for the current projec
   watching pge-workspace/pge_state.json  ·  ctrl+c to exit
 ```
 
+### `/pge-eval-backend` — Switch evaluator backend
+
+Select which AI backend runs the evaluation phase. Persists per-project or globally.
+
+```
+/pge-eval-backend                          → show current backend and config paths
+/pge-eval-backend claude                   → full Playwright evaluation  [default]
+/pge-eval-backend codex                    → Codex CLI via tmux (static code review)
+/pge-eval-backend gemini                   → Gemini CLI via tmux (static code review)
+/pge-eval-backend codex --global           → set global default
+/pge-eval-backend --clear                  → remove project-level override
+```
+
+**Backend comparison:**
+
+| Backend | Testing method | Playwright | Pass threshold |
+|---------|---------------|-----------|----------------|
+| `claude` (default) | Interactive browser + code review | ✅ Full | Per-mode |
+| `codex` | Static code analysis via Codex CLI | ❌ None | Per-mode |
+| `gemini` | Static code analysis via Gemini CLI | ❌ None | Per-mode |
+
+Requires: `tmux` + `codex` or `gemini` CLI in PATH for external backends.
+
+Config is stored at `pge-workspace/.eval-backend` (project) or `~/.claude/pge-eval-backend` (global).
+
 ### `/pge-notify` — macOS notifications
 
 Starts a background notification watcher that fires a system notification when a sprint passes, fails, or the pipeline finishes.
@@ -261,6 +301,7 @@ The baseline mode. A single `evaluator-standard` grades each sprint. Pass thresh
 ```
 pge "prompt"
 pge "prompt" --evaluator [standard|strict|quality]
+pge "prompt" --eval-backend [claude|codex|gemini]
 pge "prompt" --dry-run
 pge "prompt" --sprint N
 pge --resume
@@ -273,6 +314,8 @@ pge --resume
 | _(none)_ | Start a new pipeline with standard evaluator |
 | `--evaluator strict` | Use strict (FAIL-biased) evaluator |
 | `--evaluator quality` | Use quality evaluator (≥ 4/5 threshold) |
+| `--eval-backend codex` | Use Codex CLI evaluator for this run (not persisted) |
+| `--eval-backend gemini` | Use Gemini CLI evaluator for this run (not persisted) |
 | `--dry-run` | Run planning + contract negotiation only, skip implementation |
 | `--sprint N` | Begin at sprint N after planning |
 | `--resume` | Continue an interrupted session from last checkpoint |
@@ -438,6 +481,7 @@ prompt: |
   MODE_HINT: auto
   START_SPRINT: 1
   DRY_RUN: false
+  EVAL_BACKEND: codex
 ```
 
 ---
@@ -601,6 +645,7 @@ pge-workspace/
 {
   "mode": "standard | strict | quality | ultra | orchestrator",
   "phase": "PLANNING | CONTRACTING | IMPLEMENTING | EVALUATING | FIXING | DONE | ESCALATED",
+  "eval_backend": "claude | codex | gemini",
   "sprint_num": 2,
   "total_sprints": 5,
   "fail_count": 1,
@@ -671,6 +716,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full version history.
 
 | Version | Summary |
 |---------|---------|
+| **2.6.0** | Added evaluator backend selection (`/pge-eval-backend`) — run evaluation via Codex or Gemini CLI using tmux; added `evaluator-codex` and `evaluator-gemini` agents; `--eval-backend` flag for all pipeline modes |
 | **2.5.0** | Added 8 slash commands (`/pge-statusline`, `/pge-preflight`, `/pge-clean`, `/pge-summary`, `/pge-indicator`, `/pge-notify`, `/pge-update`, `/pge-autolaunch`), MCP server with 11 tools, status bar integration, auto-launch hook |
 | **2.2.0** | Added `pge-orchestrator` adaptive agent with complexity analysis, per-sprint evaluator assignment, and retry escalation |
 | **2.1.0** | Renamed evaluator variants (`evaluator-standard/strict/quality`), added single-evaluator repeated mode in `pge-ultra` |

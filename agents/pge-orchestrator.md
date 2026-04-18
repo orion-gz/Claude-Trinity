@@ -21,6 +21,7 @@ pge-orchestrator "user prompt"
 pge-orchestrator "user prompt" --mode [auto|standard|quality|strict|ultra]
 pge-orchestrator "user prompt" --dry-run
 pge-orchestrator "user prompt" --sprint N
+pge-orchestrator "user prompt" --eval-backend [claude|codex|gemini]
 pge-orchestrator --resume
 ```
 
@@ -32,6 +33,7 @@ MODE_HINT: auto | standard | quality | strict | ultra   (optional, default: auto
 SPEC_PATH: <path to existing spec>                       (optional, skips planning)
 START_SPRINT: N                                          (optional, default: 1)
 DRY_RUN: true | false                                    (optional, default: false)
+EVAL_BACKEND: claude | codex | gemini                   (optional, default: read from config)
 ```
 
 ---
@@ -45,6 +47,7 @@ Extract from the invocation (direct flags or structured subagent fields):
 - `{start_sprint}` — integer (default: 1)
 - `{dry_run}` — boolean (default: false)
 - `{resume}` — boolean (from `--resume` flag)
+- `{eval_backend_flag}` — value of `--eval-backend` flag or `EVAL_BACKEND:` field, or empty string if not provided
 
 ---
 
@@ -81,6 +84,44 @@ Print:
 
 ---
 
+## Step 2.5: Read Eval Backend Config
+
+Determine which AI backend will run the evaluation phase:
+
+1. If `{eval_backend_flag}` is non-empty: use that value as `{eval_backend}` (one-time override, not persisted).
+2. Else, use Bash to check for persistent config:
+   ```bash
+   if [ -f "pge-workspace/.eval-backend" ]; then
+     cat pge-workspace/.eval-backend
+   elif [ -f "$HOME/.claude/pge-eval-backend" ]; then
+     cat "$HOME/.claude/pge-eval-backend"
+   else
+     echo "claude"
+   fi
+   ```
+3. Validate the result is one of `claude`, `codex`, `gemini`. If invalid, warn and default to `claude`.
+
+Set `{eval_backend}` = the determined value.
+
+**Backend routing table:**
+| `{eval_backend}` | Evaluation method | Subagent for sprint eval |
+|-----------------|-------------------|--------------------------|
+| `claude` (default) | Playwright + code review | `{sprint_evaluator_agent}` (per mode) |
+| `codex` | Static code review via Codex CLI + tmux | `evaluator-codex` |
+| `gemini` | Static code review via Gemini CLI + tmux | `evaluator-gemini` |
+
+Print:
+```
+  [CONFIG] Eval backend: {eval_backend}
+```
+If `{eval_backend}` ≠ `claude`, also print:
+```
+  [NOTE] External backend active — evaluation uses static code analysis (no Playwright).
+         To change: /pge-eval-backend [claude|codex|gemini]
+```
+
+---
+
 ## Step 3: Initialize Working Directory & State
 
 ```bash
@@ -102,6 +143,7 @@ Create `pge-workspace/pge_state.json`:
 {
   "mode": "orchestrator",
   "base_mode": "{base_mode}",
+  "eval_backend": "{eval_backend}",
   "complexity_score": {complexity_score},
   "phase": "PLANNING",
   "sprint_num": {start_sprint},
@@ -132,6 +174,7 @@ Create `pge-workspace/pge_state.json`:
   PGE ORCHESTRATOR AGENT — ADAPTIVE PIPELINE
   Prompt:     {user_prompt}
   Base mode:  {base_mode}  [complexity: {complexity_score}/10]
+  Backend:    {eval_backend}
   State:      pge-workspace/pge_state.json
 ============================================================
 ```
@@ -377,7 +420,13 @@ Update state: `"phase"` → `"EVALUATING"`.
 
 **Determine the effective evaluator for this evaluation attempt** (see Section 6H for retry escalation — on the first attempt, `{effective_eval_agent}` = `{sprint_evaluator_agent}` and `{effective_eval_tag}` = `{sprint_evaluator_tag}`).
 
-**Non-ultra mode** (effective mode ≠ `ultra`): spawn a single evaluator:
+**Route based on `{eval_backend}`:**
+
+---
+
+**If `{eval_backend}` = `claude`** (default — full Playwright evaluation):
+
+*Non-ultra mode* (effective mode ≠ `ultra`): spawn a single evaluator:
 ```
 subagent_type: "{effective_eval_agent}"
 prompt: |
@@ -393,7 +442,51 @@ prompt: |
   Signal: EVALUATION_COMPLETE: PASS or EVALUATION_COMPLETE: FAIL
 ```
 
-**Ultra mode** (effective mode = `ultra`): spawn all three evaluators sequentially. Write individual results to `sprint_{S}_eval_standard.md`, `sprint_{S}_eval_quality.md`, `sprint_{S}_eval_strict.md`. Aggregate verdicts — majority (≥2/3) wins. Write aggregate report to `sprint_{S}_eval_aggregate.md`. Use aggregate as the evaluation file.
+*Ultra mode* (effective mode = `ultra`): spawn all three evaluators sequentially. Write individual results to `sprint_{S}_eval_standard.md`, `sprint_{S}_eval_quality.md`, `sprint_{S}_eval_strict.md`. Aggregate verdicts — majority (≥2/3) wins. Write aggregate report to `sprint_{S}_eval_aggregate.md`. Use aggregate as the evaluation file.
+
+---
+
+**If `{eval_backend}` = `codex`** (static code-review via Codex CLI):
+
+Print:
+```
+  [BACKEND] Using Codex CLI evaluator [{effective_eval_tag}] (static analysis — no Playwright)
+```
+Spawn:
+```
+subagent_type: "evaluator-codex"
+prompt: |
+  BACKEND: codex
+  MODE: {effective_eval_mode}
+  SPRINT: {current_sprint}
+  CONTRACT: pge-workspace/sprint_{current_sprint}_contract_ratified.md
+  HANDOFF: pge-workspace/sprint_{current_sprint}_handoff.md
+  EVALUATION_OUTPUT: pge-workspace/sprint_{current_sprint}_evaluation.md
+```
+
+For ultra mode with codex backend: run three separate `evaluator-codex` invocations with MODE=standard, quality, and strict respectively. Aggregate majority verdict.
+
+---
+
+**If `{eval_backend}` = `gemini`** (static code-review via Gemini CLI):
+
+Print:
+```
+  [BACKEND] Using Gemini CLI evaluator [{effective_eval_tag}] (static analysis — no Playwright)
+```
+Spawn:
+```
+subagent_type: "evaluator-gemini"
+prompt: |
+  BACKEND: gemini
+  MODE: {effective_eval_mode}
+  SPRINT: {current_sprint}
+  CONTRACT: pge-workspace/sprint_{current_sprint}_contract_ratified.md
+  HANDOFF: pge-workspace/sprint_{current_sprint}_handoff.md
+  EVALUATION_OUTPUT: pge-workspace/sprint_{current_sprint}_evaluation.md
+```
+
+For ultra mode with gemini backend: run three separate `evaluator-gemini` invocations with MODE=standard, quality, and strict respectively. Aggregate majority verdict.
 
 Read evaluation file. Update `"artifacts.evaluation"` → evaluation file path.
 
@@ -511,7 +604,7 @@ When `--resume` is passed:
    ERROR: No pge_state.json found. Run pge-orchestrator "prompt" to start a new session.
    ```
 
-2. Restore all values: `base_mode`, `complexity_score`, `sprint_modes`, `sprint_results`, `fail_count`, `phase`, `sprint_num`, `total_sprints`.
+2. Restore all values: `base_mode`, `eval_backend` (default `claude` if missing), `complexity_score`, `sprint_modes`, `sprint_results`, `fail_count`, `phase`, `sprint_num`, `total_sprints`.
 
 3. Print resume banner:
    ```
@@ -520,6 +613,7 @@ When `--resume` is passed:
      Phase:       {phase}
      Sprint:      {sprint_num} / {total_sprints}
      Base mode:   {base_mode}  [complexity: {complexity_score}/10]
+     Backend:     {eval_backend}
      Fail count:  {fail_count}
      Checkpoint:  {last_checkpoint}
    ============================================================
@@ -583,6 +677,7 @@ Stop execution and wait for user action.
 {
   "mode": "orchestrator",
   "base_mode": "standard | quality | strict | ultra",
+  "eval_backend": "claude | codex | gemini",
   "complexity_score": 5,
   "phase": "PLANNING | CONTRACTING | IMPLEMENTING | EVALUATING | FIXING | DONE | ESCALATED",
   "sprint_num": 1,
