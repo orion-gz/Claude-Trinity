@@ -87,6 +87,29 @@ Not sure which to pick? Use `/pge-orchestrator` — it analyzes your prompt and 
 
 Six Node.js scripts in `bridge/` for monitoring and managing pipelines from a separate terminal pane.
 
+### `/pge-update` — Update from inside Claude Code
+
+Updates PGE to the latest version without leaving Claude Code. Runs git pull + reinstalls all skills and agents.
+
+```
+/pge-update
+```
+
+### `/pge-autolaunch` — Auto-launch toggle
+
+Enables or disables automatic terminal indicator launch when `/pge` is invoked. When enabled, a new Terminal window opens automatically with the live agent indicator.
+
+```
+/pge-autolaunch        # enable (default)
+/pge-autolaunch on     # enable
+/pge-autolaunch off    # disable
+/pge-autolaunch status # show current state
+```
+
+Auto-launch opens the indicator terminal and starts the macOS notification watcher automatically — no manual `node bridge/pge-indicator.cjs` needed.
+
+---
+
 ### `pge-indicator` — Live agent indicator
 
 Shows which agent is active, current sprint, phase, and retry count. Updates in real time by watching `pge_state.json`.
