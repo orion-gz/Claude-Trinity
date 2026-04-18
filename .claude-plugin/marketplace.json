@@ -10,7 +10,7 @@
     {
       "name": "pge-orchestrator",
       "description": "Autonomous multi-sprint product build pipeline. Planner writes spec → Generator implements → Evaluator tests via Playwright. Supports standard / strict / quality / ultra / adaptive orchestrator modes.",
-      "version": "2.5.0",
+      "version": "2.7.0",
       "author": {
         "name": "orion-gz",
         "email": "asdfg60842@gmail.com"
@@ -28,5 +28,5 @@
       ]
     }
   ],
-  "version": "2.5.0"
+  "version": "2.7.0"
 }

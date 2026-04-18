@@ -247,7 +247,7 @@ function status() {
   } catch {}
 
   return [
-    `PGE Orchestrator v2.6.0`,
+    `PGE Orchestrator v2.7.0`,
     `Plugin root  : ${PLUGIN_ROOT}`,
     `Skills  (${installedSkills.length}/${SKILLS.length}): ${installedSkills.join(', ') || 'none'}`,
     `Agents  (${installedAgents.length}/${AGENTS.length}): ${installedAgents.join(', ') || 'none'}`,
@@ -403,7 +403,7 @@ rl.on('line', (line) => {
 
   if (method === 'initialize') {
     try { install(); } catch {}
-    send({ jsonrpc: '2.0', id, result: { protocolVersion: '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'pge-orchestrator', version: '2.6.0' } } });
+    send({ jsonrpc: '2.0', id, result: { protocolVersion: '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'pge-orchestrator', version: '2.7.0' } } });
 
   } else if (method === 'notifications/initialized') {
     // no response
