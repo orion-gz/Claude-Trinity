@@ -1,6 +1,6 @@
 {
   "name": "pge-orchestrator",
-  "version": "2.4.0",
+  "version": "2.7.0",
   "description": "Planner-Generator-Evaluator pipeline orchestrator for Claude Code. Supports standard, strict, quality, ultra, adaptive, idontcaretokenanymore, and god modes.",
   "author": "orion-gz",
   "claude_code_min_version": "1.0.0",

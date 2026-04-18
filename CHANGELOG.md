@@ -1,5 +1,82 @@
 # Changelog
 
+## [2.7.0] — 2026-04-18
+
+### Added — `/pge-limit` usage-based auto-pause
+
+- New skill `/pge-limit <percentage>` — set a token usage threshold against the 5h or weekly Claude Code limit
+- New bridge script `pge-usage-guard.cjs` — background monitor that polls usage every 60s and writes a `.pause-signal` to `pge-workspace/` when the threshold is crossed
+  - Reads token counts from `~/.claude/projects/**/*.jsonl` directly (no external dependency)
+  - Falls back to `ccusage` CLI if `--max` is not specified
+- Orchestrator detects `.pause-signal` at each phase boundary (never mid-execution) and executes a graceful pause:
+  - Writes compact `pge-workspace/pge_checkpoint.md` (sprint state, completed work, resume instructions)
+  - Updates `pge_state.json` to `PAUSED` phase with `paused_before_phase` field
+  - Fires macOS notification
+- `pge --resume` handles `PAUSED` state — reads only `pge_state.json` + `pge_checkpoint.md` to restore context (no full spec re-read, minimal token overhead)
+- Three new MCP tools: `pge_set_limit`, `pge_clear_limit`, `pge_limit_status`
+- Status bar shows `⏸ PGE PAUSED` when pipeline is in PAUSED state
+- Indicator TUI shows dedicated PAUSED screen with usage reason and resume command
+
+### Changed — TUI overhaul (`pge-indicator.cjs`)
+
+- Rounded box corners (`╭╮╰╯`) replacing square corners
+- Double-line section divider (`╞═══╡`) separating header from content
+- Mode badge right-aligned in header; usage guard active shown as `⛨` icon
+- Sprint history dots row: `✓1  ▸2  ○3` (pass / current / pending)
+- Relative timestamps: `42s ago` instead of absolute clock time
+- Spinner (`◐◓◑◒`) animates on all active phases
+- Dedicated screens per state: DONE (sprint ✓ list), PAUSED (usage reason + resume), ESCALATED (retry count + recovery hints), Idle
+
+---
+
+## [2.6.0] — 2026-04-17
+
+### Added — Evaluator backend selection (`/pge-eval-backend`)
+
+- New skill `/pge-eval-backend [claude|codex|gemini]` — switch the evaluation engine per project or globally
+- New agents `evaluator-codex` and `evaluator-gemini` — static code review via Codex CLI or Gemini CLI through tmux (no Playwright required)
+- `--eval-backend [claude|codex|gemini]` one-time flag on all pipeline modes
+- Config stored at `pge-workspace/.eval-backend` (project) or `~/.claude/pge-eval-backend` (global)
+- New bridge script `pge-eval-backend.cjs` — CLI tool for reading/writing backend config
+- New MCP tool `pge_eval_backend` — get or set backend from inside Claude Code
+
+| Backend | Method | Playwright |
+|---------|--------|-----------|
+| `claude` (default) | Interactive browser + code review | ✅ |
+| `codex` | Static analysis via Codex CLI + tmux | ❌ |
+| `gemini` | Static analysis via Gemini CLI + tmux | ❌ |
+
+---
+
+## [2.5.0] — 2026-04-17
+
+### Added — Terminal tools suite & MCP server
+
+#### Nine slash commands
+- `/pge-update` — `git pull` + reinstall all skills and agents without leaving Claude Code
+- `/pge-autolaunch [on|off|status]` — toggle auto-launch of the indicator terminal on `/pge` invocation
+- `/pge-statusline [on|off|status]` — add/remove PGE state from the Claude Code status bar
+- `/pge-preflight` — verify Playwright MCP, git, agents, and skills before starting a pipeline
+- `/pge-clean [--force]` — delete `pge-workspace/` to start fresh
+- `/pge-summary` — pretty-print sprint-by-sprint pass/fail results
+- `/pge-indicator` — open live agent TUI in a new Terminal window
+- `/pge-notify` — start background macOS notification watcher
+- `/pge-eval-backend` — switch evaluator backend (see v2.6.0)
+
+#### MCP server (`bridge/mcp-server.cjs`)
+- Installs all skills to `~/.claude/commands/` and agents to `~/.claude/agents/` on first connect
+- 11 MCP tools exposed to Claude Code for programmatic pipeline control
+- Auto-generates `~/.claude/hooks/pge-autolaunch.sh` with `PLUGIN_ROOT` baked in
+
+#### Status bar integration
+- `pge-statusline.cjs` outputs a compact one-liner: `⚙️  PGE quality · sprint 2/5 · evaluator-quality ✗1`
+- Silent (empty) when no pipeline is active
+
+#### Auto-launch hook
+- `UserPromptSubmit` hook detects `/pge*` prompts and opens indicator Terminal + notification watcher automatically
+
+---
+
 ## [2.4.0] — 2026-04-17
 
 ### Added — `pge-idontcaretokenanymore` & `pge-god` premium modes
