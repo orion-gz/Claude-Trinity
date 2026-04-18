@@ -4,6 +4,27 @@
 
 One sentence prompt. Full product. No manual intervention.
 
+## Table of Contents
+
+- [What is PGE?](#what-is-pge)
+- [Quick Start](#quick-start)
+- [Pipeline Modes](#pipeline-modes)
+  - [pge — Standard](#pge--standard-pipeline)
+  - [pge-strict — Strict](#pge-strict--strict-pipeline)
+  - [pge-quality — Quality](#pge-quality--quality-pipeline)
+  - [pge-ultra — Ultra Consensus](#pge-ultra--ultra-consensus-pipeline)
+  - [pge-orchestrator — Adaptive](#pge-orchestrator--adaptive-pipeline-agent)
+  - [pge-idontcaretokenanymore — Unlimited](#pge-idontcaretokenanymore--premium-unlimited-pipeline)
+  - [pge-god — God Mode](#pge-god--god-mode)
+- [Pipeline Diagram](#pipeline-diagram)
+- [Evaluation Criteria](#evaluation-criteria)
+- [pge-workspace/ Layout](#pge-workspace-layout)
+- [Escalation](#escalation)
+- [Resuming an Interrupted Session](#resuming-an-interrupted-session)
+- [Terminal Tools](#terminal-tools)
+- [Design Principles](#design-principles)
+- [Changelog](#changelog)
+
 ---
 
 ## What is PGE?
@@ -98,191 +119,6 @@ Or as a one-time flag:
 
 ---
 
-## Terminal Tools
-
-Nine slash commands for monitoring and managing pipelines directly from Claude Code, plus raw Node.js scripts for use in a separate terminal pane.
-
-### `/pge-update` — Update from inside Claude Code
-
-Updates PGE to the latest version without leaving Claude Code. Runs git pull + reinstalls all skills and agents.
-
-```
-/pge-update
-```
-
-### `/pge-autolaunch` — Auto-launch toggle
-
-Enables or disables automatic terminal indicator launch when `/pge` is invoked. When enabled, a new Terminal window opens automatically with the live agent indicator.
-
-```
-/pge-autolaunch        # enable (default)
-/pge-autolaunch on     # enable
-/pge-autolaunch off    # disable
-/pge-autolaunch status # show current state
-```
-
-Auto-launch opens the indicator terminal and starts the macOS notification watcher automatically — no manual `node bridge/pge-indicator.cjs` needed.
-
-### `/pge-statusline` — Claude Code status bar integration
-
-Enables or disables the PGE state display in the Claude Code status bar.
-
-```
-/pge-statusline        # enable (default)
-/pge-statusline on     # enable
-/pge-statusline off    # disable
-/pge-statusline status # show current state
-```
-
-While a pipeline is active, the status bar shows:
-
-```
-⚙️  PGE quality · sprint 2/5 · evaluator-quality
-```
-
-Silent (empty output) when no pipeline is running.
-
-### `/pge-preflight` — Pre-flight check
-
-Verifies all dependencies before starting a pipeline. Catches missing Playwright MCP, uninitialized git repo, and missing agents/skills before they cause a mid-sprint failure.
-
-```
-/pge-preflight
-```
-
-```
-PGE Pre-flight Check
-
-  ✓  Claude Code found
-  ✓  Node.js v22.x
-  ✓  Git found
-  ✓  Working directory is a git repository
-  ✗  Playwright MCP not found
-     → Add to MCP config: npx @playwright/mcp@latest
-  ✓  PGE agents installed  (planner, generator, evaluator)
-  ✓  PGE skills installed  (/pge, /pge-strict, /pge-quality ...)
-```
-
-### `/pge-clean` — Workspace cleanup
-
-Deletes `pge-workspace/` in the current project to start fresh.
-
-```
-/pge-clean
-```
-
-### `/pge-summary` — Sprint results summary
-
-Pretty-prints the pipeline results — sprint-by-sprint pass/fail, evaluator used, scores, and the full `pge_summary.md` report.
-
-```
-/pge-summary
-```
-
-### `/pge-indicator` — Live agent indicator
-
-Opens a new Terminal window with the live agent indicator for the current project.
-
-```
-/pge-indicator
-```
-
-```
-┌─────────────────────────────────────────────────────┐
-│ PGE Orchestrator   quality                          │
-├─────────────────────────────────────────────────────┤
-│ Sprint   2 / 5  ████░░░░░░░░░░░░░░░░░░  20%        │
-│ Phase    Evaluating                                 │
-│ Agent    ● evaluator-quality  (sprint 2)            │
-│ Retries  1 / 3                                      │
-│ Updated  10:42:05 AM                                │
-└─────────────────────────────────────────────────────┘
-  watching pge-workspace/pge_state.json  ·  ctrl+c to exit
-```
-
-### `/pge-eval-backend` — Switch evaluator backend
-
-Select which AI backend runs the evaluation phase. Persists per-project or globally.
-
-```
-/pge-eval-backend                          → show current backend and config paths
-/pge-eval-backend claude                   → full Playwright evaluation  [default]
-/pge-eval-backend codex                    → Codex CLI via tmux (static code review)
-/pge-eval-backend gemini                   → Gemini CLI via tmux (static code review)
-/pge-eval-backend codex --global           → set global default
-/pge-eval-backend --clear                  → remove project-level override
-```
-
-**Backend comparison:**
-
-| Backend | Testing method | Playwright | Pass threshold |
-|---------|---------------|-----------|----------------|
-| `claude` (default) | Interactive browser + code review | ✅ Full | Per-mode |
-| `codex` | Static code analysis via Codex CLI | ❌ None | Per-mode |
-| `gemini` | Static code analysis via Gemini CLI | ❌ None | Per-mode |
-
-Requires: `tmux` + `codex` or `gemini` CLI in PATH for external backends.
-
-Config is stored at `pge-workspace/.eval-backend` (project) or `~/.claude/pge-eval-backend` (global).
-
-### `/pge-notify` — macOS notifications
-
-Starts a background notification watcher that fires a system notification when a sprint passes, fails, or the pipeline finishes.
-
-```
-/pge-notify
-```
-
-Fires on: **sprint pass**, **sprint fail / retry**, **pipeline done**, **escalation** (human intervention needed).
-
-### `/pge-limit` — Usage-based auto-pause
-
-Set a token usage threshold. When Claude Code usage reaches the specified percentage of the 5-hour or weekly limit, PGE saves a compact checkpoint and stops gracefully at the next phase boundary. Resume after your limit resets with `pge --resume` — no extra context re-read overhead.
-
-```
-/pge-limit <percentage>                   # pause at N% of 5h limit (auto-detect max)
-/pge-limit <percentage> --type weekly     # weekly window
-/pge-limit <percentage> --max <tokens>    # explicit token ceiling (e.g. --max 45000000)
-/pge-limit off                            # disable
-/pge-limit status                         # show current config
-```
-
-**Examples:**
-```
-/pge-limit 80                             # stop at 80% of 5h token limit
-/pge-limit 75 --type weekly               # stop at 75% of weekly limit
-/pge-limit 80 --max 45000000             # explicit 45M token ceiling, stop at 80%
-```
-
-**What happens when the threshold is reached:**
-
-1. Background guard (`pge-usage-guard.cjs`) detects usage ≥ threshold
-2. Writes `pge-workspace/.pause-signal`
-3. Orchestrator picks it up at the next phase boundary (never mid-execution)
-4. Compact checkpoint saved to `pge-workspace/pge_checkpoint.md`
-5. State written as `PAUSED` in `pge_state.json`
-6. macOS notification fires
-7. Resume after limit resets: `pge --resume`
-
-If `--max` is omitted, the guard falls back to `ccusage` (if installed) to determine usage percentage. Install with: `npm i -g ccusage`
-
----
-
-### Running tools directly from a terminal
-
-All tools are also available as Node.js scripts in `bridge/`:
-
-```bash
-node bridge/pge-indicator.cjs [/path/to/project]
-node bridge/pge-notify.cjs    [/path/to/project]
-node bridge/pge-summary.cjs   [/path/to/project]
-node bridge/pge-preflight.cjs
-node bridge/pge-clean.cjs [--force]
-node bridge/pge-statusline.cjs   # outputs status bar line to stdout
-```
-
----
-
 ## Pipeline Modes
 
 Five modes are available. Choose based on the complexity and quality bar of your project.
@@ -299,7 +135,7 @@ Five modes are available. Choose based on the complexity and quality bar of your
 
 ---
 
-## Quick Start
+## Examples
 
 ```bash
 # Simplest — standard evaluator
@@ -722,6 +558,191 @@ Any mode supports `--resume`. It reads `pge_state.json`, restores all configurat
 pge --resume
 pge-ultra --resume
 pge-orchestrator --resume
+```
+
+---
+
+## Terminal Tools
+
+Nine slash commands for monitoring and managing pipelines directly from Claude Code, plus raw Node.js scripts for use in a separate terminal pane.
+
+### `/pge-update` — Update from inside Claude Code
+
+Updates PGE to the latest version without leaving Claude Code. Runs git pull + reinstalls all skills and agents.
+
+```
+/pge-update
+```
+
+### `/pge-autolaunch` — Auto-launch toggle
+
+Enables or disables automatic terminal indicator launch when `/pge` is invoked. When enabled, a new Terminal window opens automatically with the live agent indicator.
+
+```
+/pge-autolaunch        # enable (default)
+/pge-autolaunch on     # enable
+/pge-autolaunch off    # disable
+/pge-autolaunch status # show current state
+```
+
+Auto-launch opens the indicator terminal and starts the macOS notification watcher automatically — no manual `node bridge/pge-indicator.cjs` needed.
+
+### `/pge-statusline` — Claude Code status bar integration
+
+Enables or disables the PGE state display in the Claude Code status bar.
+
+```
+/pge-statusline        # enable (default)
+/pge-statusline on     # enable
+/pge-statusline off    # disable
+/pge-statusline status # show current state
+```
+
+While a pipeline is active, the status bar shows:
+
+```
+⚙️  PGE quality · sprint 2/5 · evaluator-quality
+```
+
+Silent (empty output) when no pipeline is running.
+
+### `/pge-preflight` — Pre-flight check
+
+Verifies all dependencies before starting a pipeline. Catches missing Playwright MCP, uninitialized git repo, and missing agents/skills before they cause a mid-sprint failure.
+
+```
+/pge-preflight
+```
+
+```
+PGE Pre-flight Check
+
+  ✓  Claude Code found
+  ✓  Node.js v22.x
+  ✓  Git found
+  ✓  Working directory is a git repository
+  ✗  Playwright MCP not found
+     → Add to MCP config: npx @playwright/mcp@latest
+  ✓  PGE agents installed  (planner, generator, evaluator)
+  ✓  PGE skills installed  (/pge, /pge-strict, /pge-quality ...)
+```
+
+### `/pge-clean` — Workspace cleanup
+
+Deletes `pge-workspace/` in the current project to start fresh.
+
+```
+/pge-clean
+```
+
+### `/pge-summary` — Sprint results summary
+
+Pretty-prints the pipeline results — sprint-by-sprint pass/fail, evaluator used, scores, and the full `pge_summary.md` report.
+
+```
+/pge-summary
+```
+
+### `/pge-indicator` — Live agent indicator
+
+Opens a new Terminal window with the live agent indicator for the current project.
+
+```
+/pge-indicator
+```
+
+```
+┌─────────────────────────────────────────────────────┐
+│ PGE Orchestrator   quality                          │
+├─────────────────────────────────────────────────────┤
+│ Sprint   2 / 5  ████░░░░░░░░░░░░░░░░░░  20%        │
+│ Phase    Evaluating                                 │
+│ Agent    ● evaluator-quality  (sprint 2)            │
+│ Retries  1 / 3                                      │
+│ Updated  10:42:05 AM                                │
+└─────────────────────────────────────────────────────┘
+  watching pge-workspace/pge_state.json  ·  ctrl+c to exit
+```
+
+### `/pge-eval-backend` — Switch evaluator backend
+
+Select which AI backend runs the evaluation phase. Persists per-project or globally.
+
+```
+/pge-eval-backend                          → show current backend and config paths
+/pge-eval-backend claude                   → full Playwright evaluation  [default]
+/pge-eval-backend codex                    → Codex CLI via tmux (static code review)
+/pge-eval-backend gemini                   → Gemini CLI via tmux (static code review)
+/pge-eval-backend codex --global           → set global default
+/pge-eval-backend --clear                  → remove project-level override
+```
+
+**Backend comparison:**
+
+| Backend | Testing method | Playwright | Pass threshold |
+|---------|---------------|-----------|----------------|
+| `claude` (default) | Interactive browser + code review | ✅ Full | Per-mode |
+| `codex` | Static code analysis via Codex CLI | ❌ None | Per-mode |
+| `gemini` | Static code analysis via Gemini CLI | ❌ None | Per-mode |
+
+Requires: `tmux` + `codex` or `gemini` CLI in PATH for external backends.
+
+Config is stored at `pge-workspace/.eval-backend` (project) or `~/.claude/pge-eval-backend` (global).
+
+### `/pge-notify` — macOS notifications
+
+Starts a background notification watcher that fires a system notification when a sprint passes, fails, or the pipeline finishes.
+
+```
+/pge-notify
+```
+
+Fires on: **sprint pass**, **sprint fail / retry**, **pipeline done**, **escalation** (human intervention needed).
+
+### `/pge-limit` — Usage-based auto-pause
+
+Set a token usage threshold. When Claude Code usage reaches the specified percentage of the 5-hour or weekly limit, PGE saves a compact checkpoint and stops gracefully at the next phase boundary. Resume after your limit resets with `pge --resume` — no extra context re-read overhead.
+
+```
+/pge-limit <percentage>                   # pause at N% of 5h limit (auto-detect max)
+/pge-limit <percentage> --type weekly     # weekly window
+/pge-limit <percentage> --max <tokens>    # explicit token ceiling (e.g. --max 45000000)
+/pge-limit off                            # disable
+/pge-limit status                         # show current config
+```
+
+**Examples:**
+```
+/pge-limit 80                             # stop at 80% of 5h token limit
+/pge-limit 75 --type weekly               # stop at 75% of weekly limit
+/pge-limit 80 --max 45000000             # explicit 45M token ceiling, stop at 80%
+```
+
+**What happens when the threshold is reached:**
+
+1. Background guard (`pge-usage-guard.cjs`) detects usage ≥ threshold
+2. Writes `pge-workspace/.pause-signal`
+3. Orchestrator picks it up at the next phase boundary (never mid-execution)
+4. Compact checkpoint saved to `pge-workspace/pge_checkpoint.md`
+5. State written as `PAUSED` in `pge_state.json`
+6. macOS notification fires
+7. Resume after limit resets: `pge --resume`
+
+If `--max` is omitted, the guard falls back to `ccusage` (if installed) to determine usage percentage. Install with: `npm i -g ccusage`
+
+---
+
+### Running tools directly from a terminal
+
+All tools are also available as Node.js scripts in `bridge/`:
+
+```bash
+node bridge/pge-indicator.cjs [/path/to/project]
+node bridge/pge-notify.cjs    [/path/to/project]
+node bridge/pge-summary.cjs   [/path/to/project]
+node bridge/pge-preflight.cjs
+node bridge/pge-clean.cjs [--force]
+node bridge/pge-statusline.cjs   # outputs status bar line to stdout
 ```
 
 ---
