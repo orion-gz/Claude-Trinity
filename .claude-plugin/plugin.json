@@ -17,7 +17,5 @@
     "evaluator",
     "autonomous"
   ],
-  "skills": "./skills/",
-  "agents": "./agents/",
-  "install": "./install.sh"
+  "skills": "./skills/"
 }
