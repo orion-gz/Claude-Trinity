@@ -14,34 +14,170 @@ Every agent runs in a **fully isolated subprocess**. Communication happens throu
 
 ---
 
-## Requirements
+## Quick Start
 
-- **Claude Code**
-- **Playwright MCP** — required by the Evaluator agent for live browser testing
-- Git — used by the Generator to commit sprint checkpoints
+**Step 1: Install**
 
-> `planner.md`, `generator.md`, `evaluator.md` 및 모든 evaluator/orchestrator 에이전트는 `install.sh`가 `~/.claude/agents/`에 직접 설치합니다. 별도로 준비할 필요가 없습니다.
-> 기존에 같은 이름의 파일이 있으면 `.bak`으로 백업 후 덮어씁니다.
+These are Claude Code slash commands — enter them **one at a time** (pasting both lines at once will fail):
+
+```
+/plugin marketplace add https://github.com/orion-gz/Claude-Trinity
+```
+
+Then:
+
+```
+/plugin install pge-orchestrator
+```
+
+Restart Claude Code. All 6 skills and 8 agents are installed automatically.
+
+> **Alternative (manual install)**
+> ```bash
+> git clone https://github.com/orion-gz/Claude-Trinity.git
+> cd Claude-Trinity
+> bash install.sh
+> ```
+
+**Step 2: Add Playwright MCP**
+
+The Evaluator uses Playwright for live browser testing. If you don't have it yet:
+
+```
+/mcp-setup
+```
+
+Select Playwright from the list, or add it manually to your MCP config:
+
+```json
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"]
+    }
+  }
+}
+```
+
+**Step 3: Build something**
+
+```
+/pge "build a habit tracker with streaks and reminders"
+```
+
+PGE writes a full product spec, implements sprint by sprint, and tests each sprint in a real browser. Failing sprints are retried automatically with extracted feedback — no manual intervention needed.
+
+### Pick a mode
+
+| What you need | Command |
+|---------------|---------|
+| Fast prototype | `/pge` |
+| Production-safe (FAIL-biased evaluator) | `/pge-strict` |
+| Client-facing quality (≥ 4/5 threshold) | `/pge-quality` |
+| All 3 evaluators must agree | `/pge-ultra` |
+| Token cost irrelevant, max quality | `/pge-idontcaretokenanymore` |
+| Absolute ceiling (godmode × 10 rounds) | `/pge-god` |
+
+Not sure which to pick? Use `/pge-orchestrator` — it analyzes your prompt and assigns the right evaluator per sprint automatically.
 
 ---
 
-## Installation
+## Terminal Tools
+
+Six Node.js scripts in `bridge/` for monitoring and managing pipelines from a separate terminal pane.
+
+### `pge-indicator` — Live agent indicator
+
+Shows which agent is active, current sprint, phase, and retry count. Updates in real time by watching `pge_state.json`.
 
 ```bash
-git clone https://github.com/orion-gz/Claude-Trinity.git
-cd Claude-Trinity
-bash install.sh
+node bridge/pge-indicator.cjs                   # watch current directory
+node bridge/pge-indicator.cjs /path/to/project  # watch a specific project
 ```
 
-The installer:
-1. Copies all skills (`pge`, `pge-strict`, `pge-quality`, `pge-ultra`) to `~/.claude/skills/`
-2. Appends the **PGE Mode** adapter section to `planner.md`, `generator.md`, and `evaluator.md` (idempotent — skips if already present, replaces if outdated)
-3. Installs standalone evaluator agents: `evaluator-standard`, `evaluator-strict`, `evaluator-quality`
-4. Installs the `pge-orchestrator` adaptive agent
+```
+┌─────────────────────────────────────────────────────┐
+│ PGE Orchestrator   quality                          │
+├─────────────────────────────────────────────────────┤
+│ Sprint   2 / 5  ████░░░░░░░░░░░░░░░░░░  20%        │
+│ Phase    Evaluating                                 │
+│ Agent    ● evaluator-quality  (sprint 2)            │
+│ Retries  1 / 3                                      │
+│ Updated  10:42:05 AM                                │
+└─────────────────────────────────────────────────────┘
+  watching pge-workspace/pge_state.json  ·  ctrl+c to exit
+```
+
+### `pge-notify` — macOS notifications
+
+Fires a system notification when a sprint passes, fails, or the pipeline finishes. Run in the background while the pipeline runs.
 
 ```bash
-# Uninstall
-bash uninstall.sh
+node bridge/pge-notify.cjs                   # watch current directory
+node bridge/pge-notify.cjs /path/to/project  # watch a specific project
+```
+
+Fires on: **sprint pass**, **sprint fail / retry**, **pipeline done**, **escalation** (human intervention needed).
+
+### `pge-statusline` — Claude Code status bar integration
+
+Outputs a compact one-liner for the Claude Code `statusLine` setting. Add it to `~/.claude/settings.json`:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "node /path/to/bridge/pge-statusline.cjs"
+  }
+}
+```
+
+While a pipeline is active, the status bar shows:
+
+```
+⚙️  PGE quality · sprint 2/5 · evaluator-quality
+```
+
+Silent (empty output) when no pipeline is running.
+
+### `pge-preflight` — Pre-flight check
+
+Verifies all dependencies before starting a pipeline. Catches missing Playwright MCP, uninitialized git repo, and missing agents/skills before they cause a mid-sprint failure.
+
+```bash
+node bridge/pge-preflight.cjs
+```
+
+```
+PGE Pre-flight Check
+
+  ✓  Claude Code found
+  ✓  Node.js v22.x
+  ✓  Git found
+  ✓  Working directory is a git repository
+  ✗  Playwright MCP not found
+     → Add to MCP config: npx @playwright/mcp@latest
+  ✓  PGE agents installed  (planner, generator, evaluator)
+  ✓  PGE skills installed  (/pge, /pge-strict, /pge-quality ...)
+```
+
+### `pge-clean` — Workspace cleanup
+
+Deletes `pge-workspace/` to start fresh. Prompts for confirmation unless `--force` is passed.
+
+```bash
+node bridge/pge-clean.cjs           # interactive prompt
+node bridge/pge-clean.cjs --force   # skip confirmation
+```
+
+### `pge-summary` — Sprint results summary
+
+Pretty-prints the pipeline results — sprint-by-sprint pass/fail, evaluator used, scores extracted from evaluation files, and the full `pge_summary.md` report.
+
+```bash
+node bridge/pge-summary.cjs                   # current directory
+node bridge/pge-summary.cjs /path/to/project  # specific project
 ```
 
 ---
