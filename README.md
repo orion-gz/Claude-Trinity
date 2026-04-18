@@ -30,7 +30,7 @@ Then:
 /plugin install pge-orchestrator
 ```
 
-Restart Claude Code. All 6 skills and 8 agents are installed automatically.
+Restart Claude Code. All 14 skills and 8 agents are installed automatically.
 
 > **Alternative (manual install)**
 > ```bash
@@ -85,7 +85,7 @@ Not sure which to pick? Use `/pge-orchestrator` — it analyzes your prompt and 
 
 ## Terminal Tools
 
-Six Node.js scripts in `bridge/` for monitoring and managing pipelines from a separate terminal pane.
+Eight slash commands for monitoring and managing pipelines directly from Claude Code, plus raw Node.js scripts for use in a separate terminal pane.
 
 ### `/pge-update` — Update from inside Claude Code
 
@@ -108,52 +108,15 @@ Enables or disables automatic terminal indicator launch when `/pge` is invoked. 
 
 Auto-launch opens the indicator terminal and starts the macOS notification watcher automatically — no manual `node bridge/pge-indicator.cjs` needed.
 
----
+### `/pge-statusline` — Claude Code status bar integration
 
-### `pge-indicator` — Live agent indicator
-
-Shows which agent is active, current sprint, phase, and retry count. Updates in real time by watching `pge_state.json`.
-
-```bash
-node bridge/pge-indicator.cjs                   # watch current directory
-node bridge/pge-indicator.cjs /path/to/project  # watch a specific project
-```
+Enables or disables the PGE state display in the Claude Code status bar.
 
 ```
-┌─────────────────────────────────────────────────────┐
-│ PGE Orchestrator   quality                          │
-├─────────────────────────────────────────────────────┤
-│ Sprint   2 / 5  ████░░░░░░░░░░░░░░░░░░  20%        │
-│ Phase    Evaluating                                 │
-│ Agent    ● evaluator-quality  (sprint 2)            │
-│ Retries  1 / 3                                      │
-│ Updated  10:42:05 AM                                │
-└─────────────────────────────────────────────────────┘
-  watching pge-workspace/pge_state.json  ·  ctrl+c to exit
-```
-
-### `pge-notify` — macOS notifications
-
-Fires a system notification when a sprint passes, fails, or the pipeline finishes. Run in the background while the pipeline runs.
-
-```bash
-node bridge/pge-notify.cjs                   # watch current directory
-node bridge/pge-notify.cjs /path/to/project  # watch a specific project
-```
-
-Fires on: **sprint pass**, **sprint fail / retry**, **pipeline done**, **escalation** (human intervention needed).
-
-### `pge-statusline` — Claude Code status bar integration
-
-Outputs a compact one-liner for the Claude Code `statusLine` setting. Add it to `~/.claude/settings.json`:
-
-```json
-{
-  "statusLine": {
-    "type": "command",
-    "command": "node /path/to/bridge/pge-statusline.cjs"
-  }
-}
+/pge-statusline        # enable (default)
+/pge-statusline on     # enable
+/pge-statusline off    # disable
+/pge-statusline status # show current state
 ```
 
 While a pipeline is active, the status bar shows:
@@ -164,12 +127,12 @@ While a pipeline is active, the status bar shows:
 
 Silent (empty output) when no pipeline is running.
 
-### `pge-preflight` — Pre-flight check
+### `/pge-preflight` — Pre-flight check
 
 Verifies all dependencies before starting a pipeline. Catches missing Playwright MCP, uninitialized git repo, and missing agents/skills before they cause a mid-sprint failure.
 
-```bash
-node bridge/pge-preflight.cjs
+```
+/pge-preflight
 ```
 
 ```
@@ -185,46 +148,66 @@ PGE Pre-flight Check
   ✓  PGE skills installed  (/pge, /pge-strict, /pge-quality ...)
 ```
 
-### `pge-update` — Update plugin to latest version
+### `/pge-clean` — Workspace cleanup
 
-Pulls the latest changes from GitHub and re-installs all skills and agents. Run this instead of uninstall → reinstall.
+Deletes `pge-workspace/` in the current project to start fresh.
+
+```
+/pge-clean
+```
+
+### `/pge-summary` — Sprint results summary
+
+Pretty-prints the pipeline results — sprint-by-sprint pass/fail, evaluator used, scores, and the full `pge_summary.md` report.
+
+```
+/pge-summary
+```
+
+### `/pge-indicator` — Live agent indicator
+
+Opens a new Terminal window with the live agent indicator for the current project.
+
+```
+/pge-indicator
+```
+
+```
+┌─────────────────────────────────────────────────────┐
+│ PGE Orchestrator   quality                          │
+├─────────────────────────────────────────────────────┤
+│ Sprint   2 / 5  ████░░░░░░░░░░░░░░░░░░  20%        │
+│ Phase    Evaluating                                 │
+│ Agent    ● evaluator-quality  (sprint 2)            │
+│ Retries  1 / 3                                      │
+│ Updated  10:42:05 AM                                │
+└─────────────────────────────────────────────────────┘
+  watching pge-workspace/pge_state.json  ·  ctrl+c to exit
+```
+
+### `/pge-notify` — macOS notifications
+
+Starts a background notification watcher that fires a system notification when a sprint passes, fails, or the pipeline finishes.
+
+```
+/pge-notify
+```
+
+Fires on: **sprint pass**, **sprint fail / retry**, **pipeline done**, **escalation** (human intervention needed).
+
+---
+
+### Running tools directly from a terminal
+
+All tools are also available as Node.js scripts in `bridge/`:
 
 ```bash
-node bridge/pge-update.cjs
-```
-
-```
-PGE Update
-
-  Plugin root: /path/to/plugin
-
-  Current version: 2.4.0
-
-  Pulling latest from origin/main ...
-
-  2.4.0 → 2.5.0
-  ✓  Skills updated  (6/6)
-  ✓  Agents updated  (8/8)
-
-Update complete. Restart Claude Code to apply changes.
-```
-
-### `pge-clean` — Workspace cleanup
-
-Deletes `pge-workspace/` to start fresh. Prompts for confirmation unless `--force` is passed.
-
-```bash
-node bridge/pge-clean.cjs           # interactive prompt
-node bridge/pge-clean.cjs --force   # skip confirmation
-```
-
-### `pge-summary` — Sprint results summary
-
-Pretty-prints the pipeline results — sprint-by-sprint pass/fail, evaluator used, scores extracted from evaluation files, and the full `pge_summary.md` report.
-
-```bash
-node bridge/pge-summary.cjs                   # current directory
-node bridge/pge-summary.cjs /path/to/project  # specific project
+node bridge/pge-indicator.cjs [/path/to/project]
+node bridge/pge-notify.cjs    [/path/to/project]
+node bridge/pge-summary.cjs   [/path/to/project]
+node bridge/pge-preflight.cjs
+node bridge/pge-clean.cjs [--force]
+node bridge/pge-statusline.cjs   # outputs status bar line to stdout
 ```
 
 ---
@@ -688,6 +671,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full version history.
 
 | Version | Summary |
 |---------|---------|
+| **2.5.0** | Added 8 slash commands (`/pge-statusline`, `/pge-preflight`, `/pge-clean`, `/pge-summary`, `/pge-indicator`, `/pge-notify`, `/pge-update`, `/pge-autolaunch`), MCP server with 11 tools, status bar integration, auto-launch hook |
 | **2.2.0** | Added `pge-orchestrator` adaptive agent with complexity analysis, per-sprint evaluator assignment, and retry escalation |
 | **2.1.0** | Renamed evaluator variants (`evaluator-standard/strict/quality`), added single-evaluator repeated mode in `pge-ultra` |
 | **2.0.0** | Added `pge-strict`, `pge-quality`, `pge-ultra` modes |
